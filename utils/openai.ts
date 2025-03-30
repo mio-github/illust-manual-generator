@@ -1,7 +1,15 @@
 import { openaiConfig, imageGenerationConfig, appConfig } from './config';
+import { 
+  API_CONFIG, 
+  APP_CONFIG, 
+  LANGUAGE_CONFIG, 
+  PROMPT_TEMPLATES, 
+  ERROR_MESSAGES,
+  SupportedLanguage 
+} from './constants';
 
 // 言語オプション
-export type SupportedLanguage = 'ja' | 'en' | 'zh' | 'ko';
+export type { SupportedLanguage };
 
 export const languageNames = {
   ja: '日本語',
@@ -46,7 +54,7 @@ export async function generateText(
     const apiKey = openaiConfig.apiKey;
     if (!apiKey) {
       console.error('[テキスト生成エラー] APIキーが設定されていません');
-      throw new Error('OpenAI APIキーが設定されていません');
+      throw new Error(ERROR_MESSAGES.API_KEY_MISSING);
     }
 
     // オプションの設定 (デフォルト値はconfigから)
@@ -57,7 +65,7 @@ export async function generateText(
 
     // 言語に応じたプロンプトの強化
     const enhancedPrompt = options.language 
-      ? `${languagePromptPrefix[language]}\n\n${prompt}\n\n${languageEnforcement[language]}`
+      ? `${LANGUAGE_CONFIG.PROMPT_PREFIX[language]}\n\n${prompt}\n\n${LANGUAGE_CONFIG.ENFORCEMENT[language]}`
       : prompt;
 
     console.log('[テキスト生成開始]', { 
@@ -72,7 +80,7 @@ export async function generateText(
     const startTime = Date.now();
     
     // OpenAI APIを呼び出す
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(API_CONFIG.OPENAI.ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -128,7 +136,7 @@ export async function generateImage(
     const apiKey = openaiConfig.apiKey;
     if (!apiKey) {
       console.error('[画像生成エラー] APIキーが設定されていません');
-      throw new Error('OpenAI APIキーが設定されていません');
+      throw new Error(ERROR_MESSAGES.API_KEY_MISSING);
     }
 
     // オプションの設定
@@ -147,7 +155,7 @@ export async function generateImage(
     const startTime = Date.now();
     
     // 実際のAPI呼び出し
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    const response = await fetch(API_CONFIG.OPENAI.IMAGE_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -173,6 +181,7 @@ export async function generateImage(
 
     const data = await response.json();
     const imageUrl = data.data[0].url;
+    
     console.log('[画像生成完了]', { 
       imageUrl: imageUrl.substring(0, 100) + '...',
       revised_prompt: data.data[0].revised_prompt?.substring(0, 100) + '...'
@@ -198,7 +207,7 @@ export async function generateDialogues(
 ): Promise<string[][]> {
   try {
     // デフォルトのコマ数を設定
-    const panelCount = 4;
+    const panelCount = APP_CONFIG.PANEL.DEFAULT;
     
     console.log('[セリフ生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
@@ -206,27 +215,8 @@ export async function generateDialogues(
       language
     });
     
-    // 言語に応じたプロンプトの調整
-    const languageText = language === 'ja' ? '日本語' : 
-                         language === 'en' ? '英語' :
-                         language === 'zh' ? '中国語' :
-                         language === 'ko' ? '韓国語' : '日本語';
-    
-    const systemPrompt = `
-      以下の説明に基づいて、${panelCount}コマのナビゲーションイラストのセリフを${languageText}で生成してください。
-      各コマには1〜2人の登場人物のセリフを含めてください。
-      セリフは${languageText}で、各コマの内容に合わせて連続性を持たせてください。
-      最初のコマは導入、最後のコマは結論になるようにしてください。
-      
-      出力形式は必ず以下のJSON配列フォーマットのみを返してください。他の説明は一切不要です:
-      [
-        ["1コマ目の1人目のセリフ", "1コマ目の2人目のセリフ"],
-        ["2コマ目の1人目のセリフ", "2コマ目の2人目のセリフ"],
-        ...
-      ]
-      
-      説明文: "${prompt}"
-    `;
+    // プロンプトテンプレートを使用
+    const systemPrompt = PROMPT_TEMPLATES.GENERATE_DIALOGUES(prompt, panelCount, language);
     
     console.log('[セリフ生成] テキスト生成API呼び出し準備完了');
     
@@ -238,112 +228,69 @@ export async function generateDialogues(
     
     console.log('[セリフ生成] APIレスポンス受信、解析開始', {
       responseLength: result.length,
-      responsePreview: result.substring(0, 100) + '...'
+      responsePreview: result.substring(0, 200) + '...'
     });
     
-    // JSONとして解析を試みる
+    // JSONの抽出を試みる
     try {
-      // 結果から有効なJSONを抽出
-      let jsonContent = result.trim();
+      // JSONを抽出するための正規表現
+      const jsonPattern = /```json\n([\s\S]*?)\n```|```([\s\S]*?)```|\[([\s\S]*?)\]/m;
+      const match = result.match(jsonPattern);
       
-      // JSONの先頭と末尾をチェック
-      if (!jsonContent.startsWith('[')) {
-        // JSONの開始を探す
-        const startIdx = jsonContent.indexOf('[');
-        if (startIdx >= 0) {
-          jsonContent = jsonContent.substring(startIdx);
-        } else {
-          throw new Error('JSONの開始文字 "[" が見つかりません');
-        }
-      }
-      
-      if (!jsonContent.endsWith(']')) {
-        // JSONの終了を探す
-        const endIdx = jsonContent.lastIndexOf(']');
-        if (endIdx >= 0) {
-          jsonContent = jsonContent.substring(0, endIdx + 1);
-        } else {
-          throw new Error('JSONの終了文字 "]" が見つかりません');
-        }
-      }
-      
-      // パース試行
-      console.log('[セリフ生成] 抽出されたJSON文字列:', jsonContent);
-      const dialogues = JSON.parse(jsonContent);
-      
-      // バリデーション
-      if (!Array.isArray(dialogues)) {
-        throw new Error('JSONパースエラー: 結果が配列ではありません');
-      }
-      
-      console.log('[セリフ生成完了]', { dialogues });
-      return dialogues;
-    } catch (parseError) {
-      console.error('[セリフ解析エラー]', parseError, {
-        responseText: result
-      });
-      
-      // より強力なJSON抽出を試みる
-      const jsonRegex = /\[\s*\[[\s\S]*?\]\s*\]/;
-      const match = result.match(jsonRegex);
-      
+      let jsonStr = '';
       if (match) {
-        try {
-          const extractedJson = match[0];
-          console.log('[セリフ生成] 正規表現で抽出したJSON:', extractedJson);
-          const dialogues = JSON.parse(extractedJson);
-          return dialogues;
-        } catch (e) {
-          console.error('[セリフ生成] 正規表現で抽出したJSONのパースに失敗:', e);
+        // マッチしたグループの中で、nullでないものを見つける
+        for (let i = 1; i < match.length; i++) {
+          if (match[i]) {
+            jsonStr = match[i].trim();
+            break;
+          }
+        }
+      } else {
+        // JSONパターンにマッチしない場合、結果全体をJSON文字列として扱う
+        jsonStr = result.trim();
+      }
+      
+      // 先頭が [ で始まらない場合、先頭に [ を追加
+      if (!jsonStr.startsWith('[')) {
+        jsonStr = '[' + jsonStr;
+      }
+      
+      // 末尾が ] で終わらない場合、末尾に ] を追加
+      if (!jsonStr.endsWith(']')) {
+        jsonStr = jsonStr + ']';
+      }
+      
+      console.log('[セリフ生成] 抽出されたJSON文字列:', jsonStr);
+      
+      // JSON文字列をパースしてオブジェクトに変換
+      const dialogues = JSON.parse(jsonStr);
+      
+      // dialoguesが配列でない場合はエラー
+      if (!Array.isArray(dialogues)) {
+        throw new Error('生成されたレスポンスが配列ではありません');
+      }
+      
+      // 各要素も配列であることを確認
+      for (const dialogue of dialogues) {
+        if (!Array.isArray(dialogue)) {
+          throw new Error('生成されたセリフのフォーマットが不正です');
         }
       }
       
-      // 最終手段: テキストベースでの解析
-      console.log('[セリフ生成] 代替解析方法を試行...');
+      // パネル数を調整（最小と最大の範囲内に収める）
+      const adjustedDialogues = dialogues.slice(0, Math.min(dialogues.length, APP_CONFIG.PANEL.MAX));
       
-      // 言語に応じたデフォルトセリフを生成
-      const defaultDialogues = getDefaultDialogues(language, panelCount);
-      console.log('[セリフ生成] デフォルトセリフを使用', { defaultDialogues });
-      return defaultDialogues;
+      console.log('[セリフ生成完了]', { dialogues: adjustedDialogues });
+      
+      return adjustedDialogues;
+    } catch (parseError) {
+      console.error('[セリフ生成] JSONパース失敗:', parseError);
+      throw new Error(ERROR_MESSAGES.DIALOGUE_GENERATION_FAILED);
     }
   } catch (error) {
     console.error('[セリフ生成エラー]', error);
-    // エラーの場合は言語に応じたデフォルトのセリフを返す
-    const defaultDialogues = getDefaultDialogues(language, 4);
-    console.log('[セリフ生成] デフォルトセリフを使用', { defaultDialogues });
-    return defaultDialogues;
-  }
-}
-
-/**
- * 言語に応じたデフォルトのセリフを返す
- */
-function getDefaultDialogues(language: SupportedLanguage, panelCount: number): string[][] {
-  if (language === 'en') {
-    return Array.from({ length: panelCount }, (_, i) => {
-      if (i === 0) return ['Hello', 'Let me tell you about this topic'];
-      if (i === panelCount - 1) return ['That concludes our explanation', 'Thank you!'];
-      return [`This is panel ${i+1}`, 'I see, that makes sense'];
-    });
-  } else if (language === 'zh') {
-    return Array.from({ length: panelCount }, (_, i) => {
-      if (i === 0) return ['你好', '让我告诉你这个话题'];
-      if (i === panelCount - 1) return ['这就是我们的解释', '谢谢！'];
-      return [`这是第${i+1}幅画`, '我明白了，有道理'];
-    });
-  } else if (language === 'ko') {
-    return Array.from({ length: panelCount }, (_, i) => {
-      if (i === 0) return ['안녕하세요', '이 주제에 대해 말씀드리겠습니다'];
-      if (i === panelCount - 1) return ['설명이 끝났습니다', '감사합니다!'];
-      return [`이것은 ${i+1}번째 패널입니다`, '이해했습니다, 말이 됩니다'];
-    });
-  } else {
-    // デフォルトは日本語
-    return Array.from({ length: panelCount }, (_, i) => {
-      if (i === 0) return ['こんにちは', '今日はこの話をします'];
-      if (i === panelCount - 1) return ['これで説明は終わりです', 'ありがとうございました'];
-      return [`${i+1}コマ目のセリフです`, 'なるほど、わかりやすいです'];
-    });
+    throw error;
   }
 }
 
@@ -369,15 +316,8 @@ export async function generateSceneWithoutText(
       sceneDescription: sceneDescription.substring(0, 50) + '...'
     });
     
-    // 特別なプロンプトを作成して、セリフなしで吹き出しのみを含む画像を生成
-    const enhancedPrompt = `
-      ${prompt}
-      シーン説明: ${sceneDescription}
-      
-      重要: この画像には吹き出しを含めてください。ただし、吹き出しの中は空白にしてください。セリフは入れないでください。
-      日本語漫画のスタイルで、単一のシーンとして描いてください。複数のコマは描かないでください。
-      登場人物の表情から感情や状況が伝わるようにしてください。
-    `.trim();
+    // プロンプトテンプレートを使用
+    const enhancedPrompt = PROMPT_TEMPLATES.GENERATE_SCENE_WITHOUT_TEXT(prompt, sceneDescription);
     
     return await generateImage(enhancedPrompt, options);
   } catch (error) {
@@ -388,27 +328,24 @@ export async function generateSceneWithoutText(
 }
 
 /**
- * 複数の画像を合成して4コマ漫画レイアウトを作成する（実装予定）
+ * 複数の画像を合成して1つのコミックにする関数（実装例）
  * @param imageUrls 画像URLの配列
- * @param dialogues セリフの配列
- * @param title タイトル
+ * @param options 合成オプション
  * @returns 合成された画像のURL
  */
 export async function composePanelsIntoComic(
   imageUrls: string[],
-  dialogues: string[][],
-  title: string = ''
-): Promise<string> {
-  // TODO: 実際にはCanvas APIやCloudinary等を使った画像合成処理を実装する
-  console.log('[コマ合成] この機能は開発中です', {
-    images: imageUrls.length,
-    dialogues: dialogues.length,
-    title
-  });
+  options: {
+    layout?: 'grid' | 'vertical' | 'horizontal';
+    panelsPerRow?: number;
+  } = {}
+) {
+  // この例ではクライアント側でHTMLを使って画像を合成すると仮定
+  // 実際の実装は環境によって異なります
+  console.log('[コミック合成] 実装が必要です');
   
-  // 現在の実装では、ひとまず最初の画像を返す
-  // 実際の実装では、ここで画像を取得して合成する処理を追加する
-  return imageUrls[0] || `https://placehold.co/800x1000?text=${encodeURIComponent('コマ合成機能開発中')}`;
+  // 仮の実装として、最初の画像を返す
+  return imageUrls[0] || `https://placehold.co/600x800?text=${encodeURIComponent('コミック合成')}`;
 }
 
 /**
@@ -449,46 +386,24 @@ export async function generateMultiPanelComic(
       return `コマ${panelNum}: 「${dialogueContext}」という会話`;
     }).join('\n');
     
-    // 言語に応じたスタイル指定
-    const languageStyleText = 
-      language === 'ja' ? '日本語イラスト' : 
-      language === 'en' ? '英語のイラスト' :
-      language === 'zh' ? '中国語のイラスト' :
-      language === 'ko' ? '韓国語のイラスト' : 'イラスト';
+    // スタイル設定
+    const style = options.style || APP_CONFIG.STYLE.DEFAULT;
+    const stylePrompt = APP_CONFIG.STYLE.PROMPTS.DEFAULT;
     
-    // セリフの言語を指定
-    const languageName = 
-      language === 'ja' ? '日本語' : 
-      language === 'en' ? '英語' :
-      language === 'zh' ? '中国語' :
-      language === 'ko' ? '韓国語' : '日本語';
-    
-    // 特別なプロンプトを作成
-    const enhancedPrompt = `
-      ${languagePromptPrefix[language]}
-      
-      ${prompt} について、最適な数のコマで表現する${languageStyleText}レイアウトを作成してください。
-      
-      【重要な指示 - 必ず守ってください】
-      - 1枚の画像の中に${panelCount}コマのナビゲーションイラストレイアウトを作成してください
-      - 各コマは明確に区切られ、順番がわかるようにしてください
-      - 吹き出しは一切含めないでください
-      - 後から吹き出しとセリフを別途追加するため、会話ができるスペースを各コマに確保してください
-      - 各コマの人物は会話しているように、表情豊かに描いてください
-      - すべてのテキストは${languageName}で表示してください
-      - ${languageStyleText}のスタイルで、読みやすい構図にしてください
-      - スタイル: ${options.style || appConfig.defaultStyle}
-      - スタイル詳細: ${appConfig.defaultStylePrompt}
-      - 各コマの内容は以下の通りです：
-      ${panelDescriptions}
-      
-      ${languageEnforcement[language]}
-    `.trim();
+    // プロンプトテンプレートを使用
+    const enhancedPrompt = PROMPT_TEMPLATES.GENERATE_MULTI_PANEL_COMIC(
+      prompt,
+      panelCount,
+      panelDescriptions,
+      style,
+      stylePrompt,
+      language
+    );
     
     console.log('[マルチパネルイラスト] 生成プロンプト:', enhancedPrompt);
     
     // 画像サイズを調整（複数コマを含むためより大きく）
-    const size = '1024x1024'; // 正方形で大きめのサイズを指定
+    const size = API_CONFIG.IMAGE.DEFAULT_SIZE;
     
     return await generateImage(enhancedPrompt, {
       ...options,
@@ -502,90 +417,54 @@ export async function generateMultiPanelComic(
 }
 
 /**
- * 1枚の画像内に複数コマのレイアウトを持つナビゲーションイラストを生成する関数（セリフ付き）
+ * セリフも含めて生成する関数（イラスト生成→セリフ生成を一括して行う）
+ * @param prompt ユーザーのプロンプト
+ * @param options 生成オプション
+ * @returns 生成された画像URLとセリフのペア
  */
 export async function generateMultiPanelComicWithText(
   prompt: string,
-  dialogues: string[][],
-  language: SupportedLanguage = 'ja',
   options: {
+    panelCount?: number;
     model?: string;
     quality?: string;
     size?: string;
     style?: string;
+    language?: SupportedLanguage;
   } = {}
 ) {
   try {
-    // 対話の数に基づいて適切なコマ数を決定
-    const panelCount = dialogues.length;
+    // 言語設定（デフォルトは日本語）
+    const language = options.language || 'ja';
+    // パネル数を設定
+    const requestedPanelCount = options.panelCount || APP_CONFIG.PANEL.DEFAULT;
+    // 有効な範囲に調整
+    const panelCount = Math.max(
+      APP_CONFIG.PANEL.MIN, 
+      Math.min(requestedPanelCount, APP_CONFIG.PANEL.MAX)
+    );
     
-    console.log('[セリフ付きイラスト生成開始]', { 
-      prompt: prompt.substring(0, 50) + '...',
-      panelCount,
-      dialoguesCount: dialogues.length,
-      language
-    });
+    // まずセリフを生成
+    console.log('[セリフ生成開始]', { prompt: prompt.substring(0, 50) + '...' });
+    const dialogues = await generateDialogues(prompt, language);
     
-    // 各コマの内容をまとめた説明を作成
-    const panelDescriptions = dialogues.map((panelDialogues, index) => {
-      const panelNum = index + 1;
-      const dialogueTexts = panelDialogues.map((text, i) => 
-        `${i === 0 ? '人物1' : '人物2'}: 「${text}」`
-      ).join(' ');
-      
-      return `コマ${panelNum}: ${dialogueTexts}`;
-    }).join('\n');
-    
-    // 言語に応じたスタイル指定
-    const languageStyleText = 
-      language === 'ja' ? '日本語イラスト' : 
-      language === 'en' ? '英語のイラスト' :
-      language === 'zh' ? '中国語のイラスト' :
-      language === 'ko' ? '韓国語のイラスト' : 'イラスト';
-    
-    // セリフの言語を指定
-    const languageName = 
-      language === 'ja' ? '日本語' : 
-      language === 'en' ? '英語' :
-      language === 'zh' ? '中国語' :
-      language === 'ko' ? '韓国語' : '日本語';
-    
-    // 特別なプロンプトを作成（セリフ付き）
-    const enhancedPrompt = `
-      ${languagePromptPrefix[language]}
-      
-      ${prompt} について、${panelCount}コマの${languageStyleText}を作成してください。
-      
-      【重要な指示 - 必ず守ってください】
-      - 1枚の画像の中に${panelCount}コマのナビゲーションイラストレイアウトを作成してください
-      - 各コマは明確に区切られ、順番がわかるようにしてください
-      - 各コマには吹き出しを含め、その中に対応するセリフを${languageName}で明確に書き込んでください
-      - 吹き出しの中のテキストは読みやすく、明確に表示してください
-      - ${languageStyleText}のスタイルで、読みやすい構図にしてください
-      - 絶対に${languageName}以外の言語は使用しないでください
-      
-      各コマの内容とセリフは以下の通りです：
-      ${panelDescriptions}
-      
-      スタイル: ${options.style || appConfig.defaultStyle}
-      スタイル詳細: ${appConfig.defaultStylePrompt}
-      
-      ${languageEnforcement[language]}
-    `.trim();
-    
-    console.log('[セリフ付きイラスト] 生成プロンプト:', enhancedPrompt);
-    
-    // 画像サイズを調整（複数コマを含むためより大きく）
-    const size = '1024x1024'; // 正方形で大きめのサイズを指定
-    
-    return await generateImage(enhancedPrompt, {
+    // イラスト生成（セリフなしでコマ割り画像を生成）
+    console.log('[イラスト生成開始]', { dialogueCount: dialogues.length });
+    const imageUrl = await generateMultiPanelComic(prompt, dialogues, {
       ...options,
-      size
+      language,
     });
+    
+    // 結果を返す
+    return {
+      imageUrl,
+      dialogues,
+      language,
+      generatedAt: new Date().toISOString()
+    };
   } catch (error) {
-    console.error('[セリフ付きイラスト生成エラー]', error);
-    // エラーの場合はプレースホルダー画像を返す
-    return `https://placehold.co/1024x1024?text=${encodeURIComponent('イラスト生成エラー')}`;
+    console.error('[イラスト生成エラー]', error);
+    throw new Error(ERROR_MESSAGES.GENERATION_FAILED);
   }
 }
 
