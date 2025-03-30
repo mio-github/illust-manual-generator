@@ -101,24 +101,23 @@ function DraggableBubble({
     document.addEventListener('mouseup', onMouseUp);
   };
   
-  const style = {
+  // transform値をそのまま適用するのではなく、スタイルとして管理
+  const styleObj: React.CSSProperties = {
+    position: 'absolute',
     left: `${bubble.x}px`,
     top: `${bubble.y}px`,
     width: `${bubble.width}px`,
     minHeight: `${bubble.height}px`,
+    fontFamily: bubble.fontFamily || 'sans-serif',
     transform: transform ? CSS.Transform.toString(transform) : undefined,
     writingMode: bubble.writing === 'vertical' ? 'vertical-rl' as const : 'horizontal-tb' as const,
-    fontFamily: bubble.fontFamily || 'sans-serif'
   };
-  
-  // 実際のドラッグエンド時の処理はDndContextのイベントハンドラから呼び出される
-  // ここではtransformの変更に基づいた更新は行わない
   
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className="absolute border-2 border-blue-500 bg-white bg-opacity-70 rounded p-2 cursor-move pointer-events-auto"
+      style={styleObj}
+      className="absolute border-2 border-blue-500 bg-white bg-opacity-70 rounded p-2 cursor-move pointer-events-auto bubble-editor"
       {...attributes}
       {...listeners}
     >
@@ -138,11 +137,11 @@ function DraggableBubble({
       </div>
       
       <div 
-        className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize"
+        className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize bubble-control"
         onMouseDown={handleResizeStart}
       />
       
-      <div className="absolute top-0 right-0 flex space-x-1">
+      <div className="absolute top-0 right-0 flex space-x-1 bubble-control">
         <button
           className="text-xs bg-blue-100 text-blue-600 rounded px-1"
           onClick={() => onWritingModeChange(index, bubble.writing === 'horizontal' ? 'vertical' : 'horizontal')}
@@ -420,51 +419,80 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     if (!comicRef.current) return;
     
     try {
-      // 編集モードをオフにして枠線が出ないようにする
+      // 編集モードを保存
       const prevEditMode = editMode;
+      
+      // 一時的に枠線と編集コントロールを非表示にするクラスを追加
+      comicRef.current.classList.add('exporting');
+      
+      // 編集モードをオフにして枠線が出ないようにする
       setEditMode(false);
       
-      // 少し待ってからキャプチャ（ステート更新後にレンダリングされるのを待つ）
-      setTimeout(async () => {
-        // 画像が完全に読み込まれていることを確認
-        if (imageRef.current && !imageRef.current.complete) {
-          await new Promise(resolve => {
-            if (imageRef.current) {
-              imageRef.current.onload = resolve;
-            }
+      // 画像が完全に表示されるまで待機
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // 画像が完全に読み込まれていることを確認
+      if (imageRef.current && !imageRef.current.complete) {
+        await new Promise(resolve => {
+          if (imageRef.current) {
+            imageRef.current.onload = resolve;
+          } else {
+            resolve(null);
+          }
+        });
+      }
+      
+      // コンテンツのサイズを取得して適切なサイズでキャプチャ
+      const contentEl = comicRef.current;
+      const contentRect = contentEl.getBoundingClientRect();
+      
+      // HTMLを画像としてキャプチャ
+      const canvas = await html2canvas(contentEl, {
+        allowTaint: true,
+        useCORS: true,
+        scale: 2, // 高品質化
+        backgroundColor: '#FFFFFF',
+        width: contentRect.width,
+        height: contentRect.height, 
+        // UI要素とバブル枠線を除外
+        onclone: (document, element) => {
+          // クローンされた要素内の全ての編集用コントロールを非表示に
+          const clonedControls = element.querySelectorAll('.bubble-control');
+          clonedControls.forEach(el => {
+            (el as HTMLElement).style.display = 'none';
           });
+          
+          // 全ての吹き出し編集枠線を透明に
+          const bubbles = element.querySelectorAll('.bubble-editor');
+          bubbles.forEach(bubble => {
+            (bubble as HTMLElement).style.border = 'none';
+            (bubble as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+          });
+          
+          return element;
+        }
+      });
+      
+      // Canvas to Blob
+      canvas.toBlob((blob: Blob | null) => {
+        if (blob) {
+          saveAs(blob, `${projectName || 'navigation-illust'}.png`);
         }
         
-        // HTMLを画像としてキャプチャ
-        const canvas = await html2canvas(comicRef.current!, {
-          allowTaint: true,
-          useCORS: true,
-          scale: 2, // 高品質化
-          backgroundColor: '#FFFFFF',
-          // UI要素は除外
-          ignoreElements: (element) => {
-            return element.classList.contains('ui-control') || 
-                  element.classList.contains('bubble-controls');
-          },
-          // 全体を確実に含めるための設定
-          width: comicRef.current!.scrollWidth,
-          height: comicRef.current!.scrollHeight,
-          windowWidth: comicRef.current!.scrollWidth,
-          windowHeight: comicRef.current!.scrollHeight
-        });
+        // クラスを元に戻す
+        comicRef.current?.classList.remove('exporting');
         
-        // Canvas to Blob
-        canvas.toBlob((blob: Blob | null) => {
-          if (blob) {
-            saveAs(blob, `${projectName || 'navigation-illust'}.png`);
-          }
-          // 編集モードを元に戻す
-          setEditMode(prevEditMode);
-        });
-      }, 100);
+        // 編集モードを元に戻す
+        setEditMode(prevEditMode);
+      });
+      
     } catch (error) {
       console.error('画像のダウンロードに失敗しました', error);
       alert('画像のダウンロードに失敗しました。もう一度お試しください。');
+      
+      // エラー時も元に戻す
+      comicRef.current.classList.remove('exporting');
+      setEditMode(true);
     }
   };
   
@@ -634,11 +662,12 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       <div 
         ref={comicRef}
         className="relative border-2 rounded-lg overflow-hidden mb-6 bg-white"
+        style={{ maxWidth: '100%', minHeight: '500px' }}
       >
         {isMultiPanelComic ? (
           // マルチパネルイラストの表示（1枚の画像にすべてのコマが含まれる）
           <div className="relative">
-            <div className="relative w-full h-96 md:h-[600px]">
+            <div className="relative w-full h-auto aspect-square max-h-[700px]">
               <Image 
                 ref={imageRef}
                 src={firstPanel.imageUrl} 
@@ -646,6 +675,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                 fill
                 style={{ objectFit: 'contain' }}
                 priority
+                sizes="(max-width: 768px) 100vw, 1024px"
               />
             </div>
             

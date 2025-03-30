@@ -9,11 +9,27 @@
   --background-color: #FDEFF2; /* 薄いピンク */
   --text-color: #5E5E5E; /* ソフトグレー */
   --border-color: #D6E5FA; /* パステルブルー */
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 250, 252, 255;
+  --background-end-rgb: 240, 245, 250;
 }
 
 body {
   background-color: var(--background-color);
   color: var(--text-color);
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
 .btn-primary {
@@ -91,4 +107,21 @@ footer {
   .input-field {
     @apply w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500;
   }
+}
+
+/* 画像出力時のスタイル */
+.exporting .bubble-control {
+  display: none !important;
+}
+
+.exporting .bubble-editor {
+  border: none !important;
+}
+
+/* 吹き出しのスタイル（出力用） */
+.exporting .bubble-editor {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  box-shadow: none !important;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
 } 
