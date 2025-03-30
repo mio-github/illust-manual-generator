@@ -10,6 +10,22 @@ export const languageNames = {
   ko: '韓国語'
 };
 
+// 言語ごとのシステムプロンプト接頭辞
+const languagePromptPrefix = {
+  ja: 'あなたは日本語の漫画制作のプロです。以下のタスクを日本語で行ってください。',
+  en: 'You are a professional comic creator. Please complete the following task in English only.',
+  zh: '您是专业的漫画创作者。请用中文完成以下任务。',
+  ko: '당신은 전문 만화 제작자입니다. 다음 작업을 한국어로만 수행해 주세요.'
+};
+
+// 言語ごとの指示強化文
+const languageEnforcement = {
+  ja: '必ず日本語だけで返答してください。出力は日本語以外の言語を含めないでください。',
+  en: 'Please respond in English only. Do not include any other languages in your output.',
+  zh: '请务必只用中文回答。输出中不要包含中文以外的语言。',
+  ko: '반드시 한국어로만 답변해 주세요. 출력에 한국어 이외의 언어를 포함하지 마세요.'
+};
+
 /**
  * OpenAI APIを使用してテキスト生成を行う関数
  * @param prompt ユーザーのプロンプト
@@ -22,6 +38,7 @@ export async function generateText(
     maxTokens?: number; 
     temperature?: number;
     model?: string;
+    language?: SupportedLanguage;
   } = {}
 ) {
   try {
@@ -36,12 +53,19 @@ export async function generateText(
     const model = options.model || openaiConfig.model;
     const maxTokens = options.maxTokens || openaiConfig.maxTokens;
     const temperature = options.temperature || openaiConfig.temperature;
+    const language = options.language || 'ja';
+
+    // 言語に応じたプロンプトの強化
+    const enhancedPrompt = options.language 
+      ? `${languagePromptPrefix[language]}\n\n${prompt}\n\n${languageEnforcement[language]}`
+      : prompt;
 
     console.log('[テキスト生成開始]', { 
       model, 
-      prompt: prompt.substring(0, 50) + '...',
+      prompt: enhancedPrompt.substring(0, 50) + '...',
       maxTokens,
-      temperature
+      temperature,
+      language
     });
 
     console.log('[テキスト生成API呼び出し] リクエスト送信中...');
@@ -56,7 +80,7 @@ export async function generateText(
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: enhancedPrompt }],
         max_tokens: maxTokens,
         temperature
       })
@@ -192,8 +216,13 @@ export async function generateDialogues(
       各コマには1〜2人の登場人物のセリフを含めてください。
       セリフは${languageText}で、各コマの内容に合わせて連続性を持たせてください。
       最初のコマは導入、最後のコマは結論になるようにしてください。
-      出力形式はJSON配列で、各コマのセリフを配列として返してください。
-      例: [["こんにちは", "どうも"], ["説明します", "なるほど"], ...]
+      
+      出力形式は必ず以下のJSON配列フォーマットのみを返してください。他の説明は一切不要です:
+      [
+        ["1コマ目の1人目のセリフ", "1コマ目の2人目のセリフ"],
+        ["2コマ目の1人目のセリフ", "2コマ目の2人目のセリフ"],
+        ...
+      ]
       
       説明文: "${prompt}"
     `;
@@ -202,7 +231,8 @@ export async function generateDialogues(
     
     const result = await generateText(systemPrompt, { 
       temperature: 0.7, 
-      maxTokens: 1000 
+      maxTokens: 1000,
+      language // 言語設定を渡す
     });
     
     console.log('[セリフ生成] APIレスポンス受信、解析開始', {
@@ -210,26 +240,41 @@ export async function generateDialogues(
       responsePreview: result.substring(0, 100) + '...'
     });
     
+    // JSONとして解析を試みる
     try {
-      // JSONとして解析を試みる
-      let parsedResult = result;
-      // 結果が直接JSONでない場合、JSON部分を抽出
-      if (!result.trim().startsWith('[')) {
-        const jsonMatch = result.match(/\[\s*\[.*\]\s*\]/);
-        if (jsonMatch) {
-          parsedResult = jsonMatch[0];
-          console.log('[セリフ生成] JSON部分を抽出しました', {
-            extractedJson: parsedResult.substring(0, 100) + '...'
-          });
+      // 結果から有効なJSONを抽出
+      let jsonContent = result.trim();
+      
+      // JSONの先頭と末尾をチェック
+      if (!jsonContent.startsWith('[')) {
+        // JSONの開始を探す
+        const startIdx = jsonContent.indexOf('[');
+        if (startIdx >= 0) {
+          jsonContent = jsonContent.substring(startIdx);
         } else {
-          console.error('[セリフ生成] JSON形式のレスポンスが見つかりませんでした', {
-            response: result
-          });
-          throw new Error('JSON形式のレスポンスが見つかりません');
+          throw new Error('JSONの開始文字 "[" が見つかりません');
         }
       }
       
-      const dialogues = JSON.parse(parsedResult);
+      if (!jsonContent.endsWith(']')) {
+        // JSONの終了を探す
+        const endIdx = jsonContent.lastIndexOf(']');
+        if (endIdx >= 0) {
+          jsonContent = jsonContent.substring(0, endIdx + 1);
+        } else {
+          throw new Error('JSONの終了文字 "]" が見つかりません');
+        }
+      }
+      
+      // パース試行
+      console.log('[セリフ生成] 抽出されたJSON文字列:', jsonContent);
+      const dialogues = JSON.parse(jsonContent);
+      
+      // バリデーション
+      if (!Array.isArray(dialogues)) {
+        throw new Error('JSONパースエラー: 結果が配列ではありません');
+      }
+      
       console.log('[セリフ生成完了]', { dialogues });
       return dialogues;
     } catch (parseError) {
@@ -237,61 +282,67 @@ export async function generateDialogues(
         responseText: result
       });
       
-      // 解析できない場合は、簡易的な処理でセリフを抽出
-      console.log('[セリフ生成] 代替解析方法を試行...');
-      const fallbackDialogues = [];
-      const lines = result.split('\n').filter((line: string) => line.trim().length > 0);
+      // より強力なJSON抽出を試みる
+      const jsonRegex = /\[\s*\[[\s\S]*?\]\s*\]/;
+      const match = result.match(jsonRegex);
       
-      for (let i = 0; i < panelCount; i++) {
-        if (i < lines.length) {
-          // 行からセリフっぽい部分を抽出
-          const lineDialogues = lines[i].replace(/^[^「」]*/, '')
-            .match(/「([^」]*)」/g)
-            ?.map((d: string) => d.replace(/「|」/g, '')) || ['セリフ抽出エラー'];
-          
-          fallbackDialogues.push(lineDialogues);
-        } else {
-          fallbackDialogues.push(['...']);
+      if (match) {
+        try {
+          const extractedJson = match[0];
+          console.log('[セリフ生成] 正規表現で抽出したJSON:', extractedJson);
+          const dialogues = JSON.parse(extractedJson);
+          return dialogues;
+        } catch (e) {
+          console.error('[セリフ生成] 正規表現で抽出したJSONのパースに失敗:', e);
         }
       }
       
-      console.log('[セリフ生成] 代替解析完了', { fallbackDialogues });
-      return fallbackDialogues;
+      // 最終手段: テキストベースでの解析
+      console.log('[セリフ生成] 代替解析方法を試行...');
+      
+      // 言語に応じたデフォルトセリフを生成
+      const defaultDialogues = getDefaultDialogues(language, panelCount);
+      console.log('[セリフ生成] デフォルトセリフを使用', { defaultDialogues });
+      return defaultDialogues;
     }
   } catch (error) {
     console.error('[セリフ生成エラー]', error);
     // エラーの場合は言語に応じたデフォルトのセリフを返す
-    let defaultDialogues;
-    
-    if (language === 'en') {
-      defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
-        if (i === 0) return ['Hello', 'Let me tell you about this topic'];
-        if (i === panelCount - 1) return ['That concludes our explanation', 'Thank you!'];
-        return [`This is panel ${i+1}`, 'I see, that makes sense'];
-      });
-    } else if (language === 'zh') {
-      defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
-        if (i === 0) return ['你好', '让我告诉你这个话题'];
-        if (i === panelCount - 1) return ['这就是我们的解释', '谢谢！'];
-        return [`这是第${i+1}幅画`, '我明白了，有道理'];
-      });
-    } else if (language === 'ko') {
-      defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
-        if (i === 0) return ['안녕하세요', '이 주제에 대해 말씀드리겠습니다'];
-        if (i === panelCount - 1) return ['설명이 끝났습니다', '감사합니다!'];
-        return [`이것은 ${i+1}번째 패널입니다`, '이해했습니다, 말이 됩니다'];
-      });
-    } else {
-      // デフォルトは日本語
-      defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
-        if (i === 0) return ['こんにちは', '今日はこの話をします'];
-        if (i === panelCount - 1) return ['これで説明は終わりです', 'ありがとうございました'];
-        return [`${i+1}コマ目のセリフです`, 'なるほど、わかりやすいです'];
-      });
-    }
-    
+    const defaultDialogues = getDefaultDialogues(language, panelCount);
     console.log('[セリフ生成] デフォルトセリフを使用', { defaultDialogues });
     return defaultDialogues;
+  }
+}
+
+/**
+ * 言語に応じたデフォルトのセリフを返す
+ */
+function getDefaultDialogues(language: SupportedLanguage, panelCount: number): string[][] {
+  if (language === 'en') {
+    return Array.from({ length: panelCount }, (_, i) => {
+      if (i === 0) return ['Hello', 'Let me tell you about this topic'];
+      if (i === panelCount - 1) return ['That concludes our explanation', 'Thank you!'];
+      return [`This is panel ${i+1}`, 'I see, that makes sense'];
+    });
+  } else if (language === 'zh') {
+    return Array.from({ length: panelCount }, (_, i) => {
+      if (i === 0) return ['你好', '让我告诉你这个话题'];
+      if (i === panelCount - 1) return ['这就是我们的解释', '谢谢！'];
+      return [`这是第${i+1}幅画`, '我明白了，有道理'];
+    });
+  } else if (language === 'ko') {
+    return Array.from({ length: panelCount }, (_, i) => {
+      if (i === 0) return ['안녕하세요', '이 주제에 대해 말씀드리겠습니다'];
+      if (i === panelCount - 1) return ['설명이 끝났습니다', '감사합니다!'];
+      return [`이것은 ${i+1}번째 패널입니다`, '이해했습니다, 말이 됩니다'];
+    });
+  } else {
+    // デフォルトは日本語
+    return Array.from({ length: panelCount }, (_, i) => {
+      if (i === 0) return ['こんにちは', '今日はこの話をします'];
+      if (i === panelCount - 1) return ['これで説明は終わりです', 'ありがとうございました'];
+      return [`${i+1}コマ目のセリフです`, 'なるほど、わかりやすいです'];
+    });
   }
 }
 
@@ -469,20 +520,33 @@ export async function generateMultiPanelComicWithText(
       language === 'zh' ? '中国語の漫画' :
       language === 'ko' ? '韓国語のウェブトゥーン' : '漫画';
     
+    // セリフの言語を指定
+    const languageName = 
+      language === 'ja' ? '日本語' : 
+      language === 'en' ? '英語' :
+      language === 'zh' ? '中国語' :
+      language === 'ko' ? '韓国語' : '日本語';
+    
     // 特別なプロンプトを作成（セリフ付き）
     const enhancedPrompt = `
+      ${languagePromptPrefix[language]}
+      
       ${prompt} について、${panelCount}コマの${languageStyleText}を作成してください。
       
-      【重要な指示】
+      【重要な指示 - 必ず守ってください】
       - 1枚の画像の中に${panelCount}コマの漫画レイアウトを作成してください
       - 各コマは明確に区切られ、順番がわかるようにしてください
-      - 各コマには吹き出しを含め、その中に対応するセリフを${language}で明確に書き込んでください
+      - 各コマには吹き出しを含め、その中に対応するセリフを${languageName}で明確に書き込んでください
       - 吹き出しの中のテキストは読みやすく、明確に表示してください
       - ${languageStyleText}のスタイルで、読みやすい構図にしてください
-      - 各コマの内容とセリフは以下の通りです：
+      - 絶対に${languageName}以外の言語は使用しないでください
+      
+      各コマの内容とセリフは以下の通りです：
       ${panelDescriptions}
       
       スタイル: ${options.style || 'シンプルで見やすい漫画'}
+      
+      ${languageEnforcement[language]}
     `.trim();
     
     console.log('[セリフ付き漫画] 生成プロンプト:', enhancedPrompt);
@@ -500,3 +564,4 @@ export async function generateMultiPanelComicWithText(
     return `https://placehold.co/1024x1024?text=${encodeURIComponent('漫画生成エラー')}`;
   }
 }
+
