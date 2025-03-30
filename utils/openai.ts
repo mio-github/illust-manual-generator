@@ -189,16 +189,17 @@ export async function generateImage(
 /**
  * プロンプトに基づいてセリフを生成する関数
  * @param prompt プロンプト
- * @param panelCount コマ数
  * @param language 生成する言語
  * @returns 生成されたセリフの配列
  */
 export async function generateDialogues(
   prompt: string, 
-  panelCount: number, 
   language: SupportedLanguage = 'ja'
 ): Promise<string[][]> {
   try {
+    // デフォルトのコマ数を設定
+    const panelCount = 4;
+    
     console.log('[セリフ生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
       panelCount,
@@ -308,7 +309,7 @@ export async function generateDialogues(
   } catch (error) {
     console.error('[セリフ生成エラー]', error);
     // エラーの場合は言語に応じたデフォルトのセリフを返す
-    const defaultDialogues = getDefaultDialogues(language, panelCount);
+    const defaultDialogues = getDefaultDialogues(language, 4);
     console.log('[セリフ生成] デフォルトセリフを使用', { defaultDialogues });
     return defaultDialogues;
   }
@@ -481,7 +482,6 @@ export async function generateMultiPanelComic(
  */
 export async function generateMultiPanelComicWithText(
   prompt: string,
-  panelCount: number,
   dialogues: string[][],
   language: SupportedLanguage = 'ja',
   options: {
@@ -492,6 +492,9 @@ export async function generateMultiPanelComicWithText(
   } = {}
 ) {
   try {
+    // 対話の数に基づいて適切なコマ数を決定
+    const panelCount = dialogues.length;
+    
     console.log('[セリフ付きイラスト生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
       panelCount,

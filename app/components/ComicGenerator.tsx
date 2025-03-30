@@ -126,8 +126,6 @@ function BubbleContextMenu({
       <ContextMenu.Portal>
         <ContextMenu.Content 
           className="min-w-[220px] bg-white rounded-md p-1 shadow-lg border border-gray-200 z-50"
-          sideOffset={5}
-          align="start"
         >
           <ContextMenu.Label className="pl-2 py-1.5 text-xs text-gray-500 font-semibold">吹き出し設定</ContextMenu.Label>
           
@@ -142,8 +140,6 @@ function BubbleContextMenu({
             <ContextMenu.Portal>
               <ContextMenu.SubContent 
                 className="min-w-[180px] bg-white rounded-md p-1 shadow-lg border border-gray-200"
-                alignOffset={-5}
-                sideOffset={2}
               >
                 {bubbleStyles.map(style => (
                   <ContextMenu.Item 
@@ -417,7 +413,10 @@ function DraggableBubble({
 }
 
 // ドロップエリアコンポーネント
-function BubbleDropArea({ children, onDragEnd }: { children: React.ReactNode; onDragEnd: (id: string, x: number, y: number) => void }) {
+function BubbleDropArea({ children, onDragEnd }: { 
+  children: React.ReactNode; 
+  onDragEnd: (id: string, updates: Partial<BubblePosition>) => void 
+}) {
   const { setNodeRef } = useDroppable({
     id: 'bubble-drop-area'
   });
@@ -621,10 +620,9 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     setBubblePositions([...bubblePositions, newBubble]);
   };
   
-  const handleBubbleDrag = (index: number, x: number, y: number) => {
+  const handleBubbleDrag = (index: number, updates: Partial<BubblePosition>) => {
     const newBubbles = [...bubblePositions];
-    newBubbles[index].x = x;
-    newBubbles[index].y = y;
+    newBubbles[index] = { ...newBubbles[index], ...updates };
     setBubblePositions(newBubbles);
   };
   
@@ -677,10 +675,10 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     setBubblePositions(newBubbles);
   };
   
-  const handleDragEnd = (id: string, x: number, y: number) => {
+  const handleDragEnd = (id: string, updates: Partial<BubblePosition>) => {
     if (id.startsWith('bubble-')) {
       const index = parseInt(id.replace('bubble-', ''));
-      handleBubbleDrag(index, x, y);
+      handleBubbleDrag(index, updates);
     }
   };
   
@@ -977,7 +975,10 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                 if (id.startsWith('bubble-')) {
                   const index = parseInt(id.replace('bubble-', ''));
                   const bubble = bubblePositions[index];
-                  handleBubbleDrag(index, bubble.x + delta.x, bubble.y + delta.y);
+                  handleBubbleDrag(index, {
+                    x: bubble.x + delta.x,
+                    y: bubble.y + delta.y
+                  });
                 }
               }
             }}>
@@ -1108,7 +1109,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                       type="number" 
                       className="input-field" 
                       value={bubble.x}
-                      onChange={(e) => handleBubbleDrag(index, Number(e.target.value), bubble.y)}
+                      onChange={(e) => handleBubbleDrag(index, { x: Number(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1117,7 +1118,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                       type="number" 
                       className="input-field" 
                       value={bubble.y}
-                      onChange={(e) => handleBubbleDrag(index, bubble.x, Number(e.target.value))}
+                      onChange={(e) => handleBubbleDrag(index, { y: Number(e.target.value) })}
                     />
                   </div>
                 </div>
@@ -1174,11 +1175,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                     max="30" 
                     className="w-full" 
                     value={bubble.fontSize}
-                    onChange={(e) => {
-                      const newBubbles = [...bubblePositions];
-                      newBubbles[index].fontSize = Number(e.target.value);
-                      setBubblePositions(newBubbles);
-                    }}
+                    onChange={(e) => handleBubbleDrag(index, { fontSize: Number(e.target.value) })}
                   />
                   <div className="text-center text-xs">{bubble.fontSize}px</div>
                 </div>

@@ -4,7 +4,7 @@
  */
 
 // 環境変数から設定を読み込む
-const checkApiKey = () => {
+export const checkApiKey = () => {
   // クライアント側では環境変数にアクセスできないため、サーバー側でのみ実行
   if (typeof window !== 'undefined') {
     return undefined; // クライアント側では空値を返す
