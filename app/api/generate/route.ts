@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { appConfig } from '@/utils/config';
+import { generateDialogues, generateImage } from '@/utils/openai';
 
 export async function POST(req: NextRequest) {
   try {
@@ -6,7 +8,7 @@ export async function POST(req: NextRequest) {
     
     // リクエストボディを取得
     const body = await req.json();
-    const { prompt, panels = 4, style } = body;
+    const { prompt, panels = appConfig.defaultPanels, style = appConfig.defaultStyle } = body;
     
     console.log('リクエスト内容:', { prompt, panels, style });
 
@@ -19,58 +21,99 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // コマ数を6コマまでに制限
-    const actualPanels = Math.min(Math.max(1, panels), 6);
+    // コマ数をMAX_PANELSまでに制限
+    const maxPanels = appConfig.maxPanels;
+    const actualPanels = Math.min(Math.max(1, panels), maxPanels);
     if (panels !== actualPanels) {
       console.log(`指定されたコマ数(${panels})が範囲外のため、${actualPanels}コマに調整されました`);
     }
 
-    // 実際の実装では、ここでAI画像生成サービスを呼び出します
-    // このサンプルでは、ダミーの応答を返します
-    console.log('画像生成処理を開始します...');
+    console.log('漫画生成処理を開始します...');
+    console.log(`プロンプト: ${prompt}`);
+    console.log(`コマ数: ${actualPanels}`);
+    console.log(`スタイル: ${style}`);
     
-    // 生成処理を模擬的に遅延させる（実際のAPIでは必要ありません）
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // まずセリフを生成
+    console.log('1. セリフ生成を開始...');
+    const dialogues = await generateDialogues(prompt, actualPanels);
+    console.log('セリフ生成完了:', dialogues);
     
-    // セリフの自動生成（実際はAIモデルを使用して生成）
-    const generateDialogue = (panelIndex: number, promptText: string) => {
-      const dialogueBank = [
-        ['なるほど、これが問題なんですね', 'そうなんです！どうすればいいでしょう？'],
-        ['まず最初にこの部分を確認しましょう', 'なるほど、理解できました'],
-        ['次に重要なのはこのステップです', 'これが解決の鍵ですね！'],
-        ['この部分が特に注意が必要です', '気をつけます！'],
-        ['最後に確認しておきましょう', 'これで完璧ですね！ありがとう'],
-        ['実際にやってみると簡単ですよ', 'わかりました、試してみます']
-      ];
+    // 日本語プロンプトを英語に翻訳したい場合はここでAPIを呼び出す
+    // const translatedPrompt = await translateToEnglish(prompt);
+    
+    // 各コマの画像生成プロンプトを作成
+    const generatePanelPrompt = (index: number, basePrompt: string) => {
+      const panelNum = index + 1;
+      const totalPanels = actualPanels;
+      let storyProgress = '';
       
-      // プロンプトの内容に基づいた擬似的なセリフ生成
-      // 実際の実装ではもっと洗練された生成ロジックを使用すべき
-      return dialogueBank[panelIndex % dialogueBank.length];
+      if (index === 0) {
+        storyProgress = '導入部分、問題提起';
+      } else if (index === totalPanels - 1) {
+        storyProgress = '結論部分、まとめ';
+      } else {
+        const progress = Math.floor((index / (totalPanels - 1)) * 100);
+        storyProgress = `説明の${progress}%の部分`;
+      }
+      
+      // セリフの内容を画像生成に活用
+      const dialogueContext = dialogues[index]?.join('、') || '';
+      
+      return `
+        4コマ漫画の${panelNum}コマ目（${storyProgress}）：${basePrompt}
+        コマの内容: ${dialogueContext}
+        スタイル: ${style}、日本語の漫画、シンプルで見やすい構図、2人の登場人物
+      `.trim();
     };
     
-    // ダミーのURL配列とセリフを生成
+    // 画像生成
+    console.log('2. 画像生成を開始...');
+    const imagePromises = Array.from({ length: actualPanels }, async (_, i) => {
+      const panelPrompt = generatePanelPrompt(i, prompt);
+      console.log(`コマ${i+1}の画像生成プロンプト:`, panelPrompt.substring(0, 100) + '...');
+      
+      try {
+        const imageUrl = await generateImage(panelPrompt, { 
+          quality: style === 'simple' ? 'standard' : 'hd',
+        });
+        console.log(`コマ${i+1}の画像生成完了:`, imageUrl.substring(0, 50) + '...');
+        return imageUrl;
+      } catch (error) {
+        console.error(`コマ${i+1}の画像生成エラー:`, error);
+        return `https://placehold.co/600x400?text=コマ${i+1}生成エラー`;
+      }
+    });
+    
+    const imageUrls = await Promise.all(imagePromises);
+    console.log('全ての画像生成が完了しました');
+    
+    // 結果をまとめる
     const generatedContent = Array.from({ length: actualPanels }, (_, i) => {
-      const dialogues = generateDialogue(i, prompt);
       return {
-        imageUrl: `https://placehold.co/600x400?text=漫画コマ${i + 1}`,
-        dialogues,
-        caption: `${prompt}の説明 - パート${i + 1}`
+        imageUrl: imageUrls[i],
+        dialogues: dialogues[i] || [],
+        caption: `${prompt} - パート${i + 1}`,
       };
     });
     
-    console.log(`${actualPanels}コマの漫画とセリフを生成しました:`, generatedContent);
+    console.log(`${actualPanels}コマの漫画とセリフを生成しました`);
     
     return NextResponse.json({ 
       success: true,
       content: generatedContent,
       panelCount: actualPanels,
+      prompt,
+      style,
       message: `${actualPanels}コマのイラストとセリフが正常に生成されました`
     });
     
   } catch (error) {
-    console.error('イラスト生成エラー:', error);
+    console.error('漫画生成エラー:', error);
     return NextResponse.json(
-      { error: 'イラスト生成中にエラーが発生しました', details: error instanceof Error ? error.message : '未知のエラー' },
+      { 
+        error: '漫画生成中にエラーが発生しました', 
+        details: error instanceof Error ? error.message : '未知のエラー' 
+      },
       { status: 500 }
     );
   }
