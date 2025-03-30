@@ -66,7 +66,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   const [bubblePositions, setBubblePositions] = useState<BubblePosition[]>([]);
   
   // プロジェクト関連
-  const [projectName, setProjectName] = useState(`Comic-${new Date().toISOString().slice(0, 10)}`);
+  const [projectName, setProjectName] = useState(`NavIllust-${new Date().toISOString().slice(0, 10)}`);
   const [savedProjects, setSavedProjects] = useState<ComicProject[]>([]);
   const [showProjectModal, setShowProjectModal] = useState(false);
   
@@ -175,7 +175,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       // Canvas to Blob
       canvas.toBlob((blob: Blob | null) => {
         if (blob) {
-          saveAs(blob, `${projectName || 'comic'}.png`);
+          saveAs(blob, `${projectName || 'navigation-illust'}.png`);
         }
       });
     } catch (error) {
@@ -222,7 +222,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   return (
     <div>
       <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-xl font-semibold">漫画プレビュー ({panelCount}コマ)</h2>
+        <h2 className="text-xl font-semibold">ナビゲーションイラストプレビュー ({panelCount}コマ)</h2>
         <div className="flex items-center gap-3">
           <label className="inline-flex items-center cursor-pointer">
             <input 
@@ -274,7 +274,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
             <div className="relative w-full h-96 md:h-[600px]">
               <Image 
                 src={firstPanel.imageUrl} 
-                alt="マルチパネル漫画"
+                alt="ナビゲーションイラスト"
                 fill
                 style={{ objectFit: 'contain' }}
               />
@@ -350,7 +350,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                 <div className="relative w-full h-64">
                   <Image 
                     src={panel.imageUrl} 
-                    alt={`漫画コマ ${index + 1}`}
+                    alt={`イラストコマ ${index + 1}`}
                     fill
                     style={{ objectFit: 'contain' }}
                   />

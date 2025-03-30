@@ -60,14 +60,14 @@ export default function Home() {
   return (
     <main className="container mx-auto px-4 py-8">
       <section className="mb-12 text-center">
-        <h1 className="text-3xl font-bold mb-4">イラスト説明書ジェネレーター</h1>
+        <h1 className="text-3xl font-bold mb-4">ナビゲーションイラスト生成ツール</h1>
         <p className="text-lg text-gray-600">
-          説明したい内容を入力するだけで、AIが漫画形式の説明書を生成します
+          説明したい内容を入力するだけで、AIがイラスト形式のナビゲーションを生成します
         </p>
       </section>
 
       <section className="card mb-12">
-        <h2 className="text-xl font-semibold mb-4">漫画の生成</h2>
+        <h2 className="text-xl font-semibold mb-4">ナビゲーションイラストの生成</h2>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
@@ -179,7 +179,7 @@ export default function Home() {
                   生成中...
                 </>
               ) : (
-                '漫画を生成'
+                'ナビゲーションイラストを生成'
               )}
             </button>
           </div>
@@ -208,8 +208,8 @@ export default function Home() {
           <li>コマ数（2〜6コマ）とスタイルを選択します。</li>
           <li>言語を選択します。日本語、英語、中国語、韓国語から選べます。</li>
           <li>セリフを画像に直接入れるか、UIで表示するかを選択できます。</li>
-          <li>「漫画を生成」ボタンをクリックして、AIに漫画を作成してもらいましょう。</li>
-          <li>生成された漫画は、ダウンロードしたり、共有したりすることができます。</li>
+          <li>「ナビゲーションイラストを生成」ボタンをクリックして、AIにイラストを作成してもらいましょう。</li>
+          <li>生成されたイラストは、ダウンロードしたり、共有したりすることができます。</li>
         </ol>
         
         <div className="mt-6">
