@@ -42,8 +42,8 @@ export default function ComicGenerator({ images }: ComicGeneratorProps) {
               <Image 
                 src={imageUrl} 
                 alt={`漫画コマ ${index + 1}`}
-                layout="fill"
-                objectFit="contain"
+                fill
+                style={{ objectFit: 'contain' }}
               />
             </div>
             {panelTexts[index] && (
