@@ -522,7 +522,8 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   const imageRef = useRef<HTMLImageElement>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const [bubblePositions, setBubblePositions] = useState<BubblePosition[]>([]);
-  const [saveMethod, setSaveMethod] = useState<SaveMethod>('direct'); // 追加：保存方法の状態
+  const [saveMethod, setSaveMethod] = useState<SaveMethod>('direct');
+  const [isSaving, setIsSaving] = useState(false);
   
   // フォントファミリーオプション
   const fontFamilies = [
@@ -845,65 +846,88 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     setSaveMethod(e.target.value as SaveMethod);
   };
 
-  // 直接画像を保存する関数を追加
+  // 元画像を直接ダウンロードする関数を改善
   const saveImageDirectly = async () => {
     try {
+      setIsSaving(true);
+      
       // 元の画像URLを取得
       const imageUrl = content?.imageUrl || '';
       if (!imageUrl) {
         alert('保存する画像がありません');
+        setIsSaving(false);
         return;
       }
 
-      // 画像URLがBlobURLの場合は直接使用、そうでない場合はfetchして変換
-      let blob: Blob;
-      if (imageUrl.startsWith('blob:')) {
-        // BlobURLから元のBlobを取得
-        const response = await fetch(imageUrl);
-        blob = await response.blob();
-      } else {
-        // 外部URLの場合はCORSをバイパスするためサーバーサイドで処理
-        const response = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
-        blob = await response.blob();
-      }
+      console.log('画像を保存します:', imageUrl);
 
-      // ファイル名を設定して保存
-      const fileName = projectName || `illustrated-guide-${new Date().toISOString().slice(0, 10)}`;
-      saveAs(blob, `${fileName}.png`);
-      
-      console.log('画像を直接保存しました: ', imageUrl);
-    } catch (error) {
-      console.error('画像の直接保存に失敗しました', error);
-      alert('画像の保存に失敗しました。もう一度お試しください。');
-    }
-  };
-
-  // 新しいsaveWithCanvas関数を追加
-  const saveWithCanvas = async () => {
-    try {
-      // 元の画像を取得
-      const imageUrl = content?.imageUrl || '';
-      if (!imageUrl) {
-        alert('保存する画像がありません');
-        return;
-      }
-
-      // 画像を読み込む
-      const img = new Image();
-      img.crossOrigin = 'anonymous'; // CORS対応
-      
-      // 画像ロード後の処理をPromiseでラップ
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
-        
-        // 画像URLがBlobURLの場合は直接使用、そうでない場合はプロキシを経由
-        if (imageUrl.startsWith('blob:')) {
-          img.src = imageUrl;
-        } else {
-          img.src = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+      // 直接画像をダウンロード（特にBlobURLの場合は効果的）
+      if (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
+        try {
+          // BlobURLなら直接fetch
+          const response = await fetch(imageUrl);
+          if (!response.ok) throw new Error(`画像の取得に失敗: ${response.status}`);
+          
+          const blob = await response.blob();
+          const fileName = projectName || `illustrated-guide-${new Date().toISOString().slice(0, 10)}`;
+          saveAs(blob, `${fileName}.png`);
+          console.log('Blob画像を保存しました');
+          setIsSaving(false);
+          return;
+        } catch (error) {
+          console.error('Blob画像の保存に失敗:', error);
+          // ここでエラーをスローせず、次の方法を試みる
         }
-      });
+      }
+
+      // Imgタグを使用した直接ダウンロード方法（CORS問題がない場合に効果的）
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        await new Promise<void>((resolve, reject) => {
+          let loaded = false;
+          
+          img.onload = () => {
+            loaded = true;
+            resolve();
+          };
+          
+          img.onerror = () => {
+            reject(new Error('画像の読み込みに失敗しました'));
+          };
+        
+          // 画像URLの種類に応じて適切なソースを設定
+          if (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
+            img.src = imageUrl;
+          } else {
+            // まずオリジナルURLで試す
+            img.src = imageUrl;
+            
+            // 5秒以内に読み込めなければプロキシを使用
+            setTimeout(() => {
+              if (!loaded) {
+                console.log('画像読み込みにタイムアウト、プロキシ使用に切り替え');
+                img.src = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+              }
+            }, 3000);
+          }
+          
+          // 最終タイムアウト
+          setTimeout(() => {
+            if (!loaded) {
+              reject(new Error('画像の読み込みがタイムアウトしました'));
+            }
+          }, 10000);
+        });
+      } catch (error) {
+        console.error('画像のロードに失敗:', error);
+        setIsSaving(false);
+        alert('画像の読み込みに失敗しました。別の方法で保存してみてください。');
+        return;
+      }
+      
+      console.log('画像ロード成功:', { width: img.width, height: img.height, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
       
       // Canvasを作成
       const canvas = document.createElement('canvas');
@@ -913,174 +937,208 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       }
       
       // 元画像のサイズでCanvasを初期化
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = img.naturalWidth || 1024;
+      canvas.height = img.naturalHeight || 1024;
       
       // 背景画像を描画
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       
       // 吹き出しを描画
       for (const bubble of bubblePositions) {
-        // 吹き出しの背景
-        ctx.save();
-        
-        // 吹き出しスタイルを適用
-        ctx.fillStyle = `rgba(255, 255, 255, ${bubble.opacity || 0.85})`;
-        
-        // 吹き出しの形状に応じて描画方法を変える
-        const bubbleStyle = bubble.bubbleStyle || 'anime';
-        const x = bubble.x;
-        const y = bubble.y;
-        const width = bubble.width;
-        const height = bubble.height;
-        
-        // 吹き出しの描画（スタイルによって分岐）
-        switch (bubbleStyle) {
-          case 'round':
-            // 丸型吹き出し
-            ctx.beginPath();
-            drawRoundedRect(ctx, x, y, width, height, 20);
-            ctx.fill();
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            break;
-            
-          case 'cloud':
-            // もくもく吹き出し
-            ctx.beginPath();
-            drawRoundedRect(ctx, x, y, width, height, [20, 20, 20, 5]);
-            ctx.fill();
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            break;
-            
-          case 'think':
-            // 考え事吹き出し
-            ctx.beginPath();
-            drawRoundedRect(ctx, x, y, width, height, 15);
-            ctx.fill();
-            ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // 考え事の丸（小）
-            ctx.beginPath();
-            ctx.arc(x + 10, y + height + 10, 5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            
-            // 考え事の丸（極小）
-            ctx.beginPath();
-            ctx.arc(x + 5, y + height + 20, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            break;
-            
-          case 'shout':
-            // 叫び吹き出し
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.transform(1, 0, -0.1, 1, 0, 0); // 少し傾ける
-            ctx.fillRect(0, 0, width, height);
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(0, 0, width, height);
-            ctx.restore();
-            break;
-            
-          case 'anime':
-          default:
-            // 標準吹き出し
-            ctx.beginPath();
-            drawRoundedRect(ctx, x, y, width, height, 8);
-            ctx.fill();
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // 吹き出しの尻尾
-            ctx.beginPath();
-            ctx.moveTo(x + 17, y + height);
-            ctx.lineTo(x + 30, y + height + 13);
-            ctx.lineTo(x + 43, y + height);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            break;
-        }
-        
-        // テキストを描画
-        ctx.restore();
-        ctx.save();
-        
-        // テキストスタイルを設定
-        ctx.fillStyle = bubble.color || '#000';
-        ctx.font = `${bubble.fontWeight || ''} ${bubble.fontSize}px ${bubble.fontFamily || 'sans-serif'}`;
-        ctx.textBaseline = 'top';
-        
-        // テキストの配置を調整
-        const paddingX = 10; // 左右の余白
-        const paddingY = 10; // 上下の余白
-        const textX = x + paddingX;
-        const textY = y + paddingY;
-        const textWidth = width - (paddingX * 2);
-        
-        // 縦書き/横書きの処理
-        if (bubble.writing === 'vertical') {
-          // 縦書き処理は複雑なので、ここではシンプルに実装
-          // （より高度な縦書き処理が必要な場合は追加実装が必要）
+        try {
+          // 吹き出しの背景
           ctx.save();
-          ctx.translate(textX + textWidth, textY);
-          ctx.rotate(Math.PI/2);
           
-          const lines = bubble.text.split('\n');
-          const lineHeight = bubble.fontSize * 1.2;
+          // 吹き出しスタイルを適用
+          ctx.fillStyle = `rgba(255, 255, 255, ${bubble.opacity || 0.85})`;
           
-          lines.forEach((line, i) => {
-            ctx.fillText(line, 0, i * lineHeight * -1);
-          });
+          // 吹き出しの形状に応じて描画方法を変える
+          const bubbleStyle = bubble.bubbleStyle || 'anime';
+          const x = bubble.x;
+          const y = bubble.y;
+          const width = bubble.width;
+          const height = bubble.height;
+          
+          // 吹き出しの描画（スタイルによって分岐）
+          switch (bubbleStyle) {
+            case 'round':
+              // 丸型吹き出し
+              ctx.beginPath();
+              drawRoundedRect(ctx, x, y, width, height, 20);
+              ctx.fill();
+              ctx.strokeStyle = '#333';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              break;
+              
+            case 'cloud':
+              // もくもく吹き出し
+              ctx.beginPath();
+              drawRoundedRect(ctx, x, y, width, height, [20, 20, 20, 5]);
+              ctx.fill();
+              ctx.strokeStyle = '#333';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              break;
+              
+            case 'think':
+              // 考え事吹き出し
+              ctx.beginPath();
+              drawRoundedRect(ctx, x, y, width, height, 15);
+              ctx.fill();
+              ctx.setLineDash([5, 5]);
+              ctx.strokeStyle = '#333';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              
+              // 考え事の丸（小）
+              ctx.beginPath();
+              ctx.arc(x + 10, y + height + 10, 5, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+              
+              // 考え事の丸（極小）
+              ctx.beginPath();
+              ctx.arc(x + 5, y + height + 20, 3, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+              break;
+              
+            case 'shout':
+              // 叫び吹き出し
+              ctx.save();
+              ctx.translate(x, y);
+              ctx.transform(1, 0, -0.1, 1, 0, 0); // 少し傾ける
+              ctx.fillRect(0, 0, width, height);
+              ctx.strokeStyle = '#333';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(0, 0, width, height);
+              ctx.restore();
+              break;
+              
+            case 'anime':
+            default:
+              // 標準吹き出し
+              ctx.beginPath();
+              drawRoundedRect(ctx, x, y, width, height, 8);
+              ctx.fill();
+              ctx.strokeStyle = '#333';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              
+              // 吹き出しの尻尾
+              ctx.beginPath();
+              ctx.moveTo(x + 17, y + height);
+              ctx.lineTo(x + 30, y + height + 13);
+              ctx.lineTo(x + 43, y + height);
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke();
+              break;
+          }
+          
+          // テキストを描画
+          ctx.restore();
+          ctx.save();
+          
+          // テキストスタイルを設定
+          ctx.fillStyle = bubble.color || '#000';
+          const fontWeight = bubble.fontWeight || '';
+          const fontSize = bubble.fontSize || 14;
+          const fontFamily = bubble.fontFamily || 'sans-serif';
+          ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+          ctx.textBaseline = 'top';
+          
+          // テキストの配置を調整
+          const paddingX = 10; // 左右の余白
+          const paddingY = 10; // 上下の余白
+          const textX = x + paddingX;
+          const textY = y + paddingY;
+          const textWidth = width - (paddingX * 2);
+          
+          // 縦書き/横書きの処理
+          if (bubble.writing === 'vertical') {
+            // 縦書き処理は複雑なので、ここではシンプルに実装
+            ctx.save();
+            ctx.translate(textX + textWidth, textY);
+            ctx.rotate(Math.PI/2);
+            
+            const lines = bubble.text.split('\n');
+            const lineHeight = fontSize * 1.2;
+            
+            lines.forEach((line, i) => {
+              ctx.fillText(line, 0, i * lineHeight * -1);
+            });
+            
+            ctx.restore();
+          } else {
+            // 横書き（標準的なテキスト描画）
+            const lines = bubble.text.split('\n');
+            const lineHeight = fontSize * 1.2;
+            
+            lines.forEach((line, i) => {
+              ctx.fillText(line, textX, textY + (i * lineHeight));
+            });
+          }
           
           ctx.restore();
-        } else {
-          // 横書き（標準的なテキスト描画）
-          const lines = bubble.text.split('\n');
-          const lineHeight = bubble.fontSize * 1.2;
-          
-          lines.forEach((line, i) => {
-            ctx.fillText(line, textX, textY + (i * lineHeight));
-          });
+        } catch (bubbleError) {
+          console.error('吹き出し描画エラー:', bubbleError);
+          // 個別の吹き出しエラーは無視して続行
+          continue;
         }
-        
-        ctx.restore();
       }
       
-      // Canvasから画像を生成してダウンロード
-      const fileName = projectName || `illustrated-guide-${new Date().toISOString().slice(0, 10)}`;
-      canvas.toBlob(blob => {
+      // Canvasから画像生成とダウンロードをPromiseでラップ
+      try {
+        // ファイル名を設定
+        const fileName = projectName || `illustrated-guide-${new Date().toISOString().slice(0, 10)}`;
+        
+        // BlobへのPromise変換
+        const blob = await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob(resolve, 'image/png', 1.0);
+        });
+        
         if (blob) {
           saveAs(blob, `${fileName}.png`);
-          console.log('Canvasから画像を保存しました');
+          console.log('Canvas描画画像を保存しました');
+        } else {
+          throw new Error('Blob生成に失敗しました');
         }
-      }, 'image/png');
+      } catch (blobError) {
+        console.error('Blob生成/保存エラー:', blobError);
+        alert('画像の保存に失敗しました。別の方法をお試しください。');
+      }
       
+      setIsSaving(false);
     } catch (error) {
-      console.error('Canvas画像の保存に失敗しました', error);
-      alert('画像の保存に失敗しました。もう一度お試しください。');
+      console.error('Canvas画像保存の全体エラー:', error);
+      alert('画像の保存処理中にエラーが発生しました。もう一度お試しください。');
+      setIsSaving(false);
     }
   };
-  
-  // handleDownload関数を更新して、選択された方法で保存
+
+  // handleDownload関数を更新
   const handleDownload = async () => {
-    if (saveMethod === 'direct') {
-      await saveImageDirectly();
-    } else {
-      await saveWithCanvas();
+    if (isSaving) {
+      alert('すでに保存処理中です。しばらくお待ちください。');
+      return;
+    }
+    
+    try {
+      if (saveMethod === 'direct') {
+        await saveImageDirectly();
+      } else {
+        await saveWithCanvas();
+      }
+    } catch (error) {
+      console.error('画像保存エラー:', error);
+      alert('画像保存中にエラーが発生しました。もう一度お試しください。');
+      setIsSaving(false);
     }
   };
   
+  // 以下は元の関数を保持する
   const handleSaveProject = async () => {
     if (!projectName.trim()) {
       alert('プロジェクト名を入力してください');
@@ -1112,45 +1170,6 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     } catch (e) {
       console.error('プロジェクトの保存に失敗しました', e);
       alert('プロジェクトの保存に失敗しました');
-    }
-  };
-  
-  const exportProjectAsZip = async (project: ComicProject) => {
-    const zip = new JSZip();
-    
-    // プロジェクトデータをJSONとして保存
-    zip.file("project.json", JSON.stringify(project, null, 2));
-    
-    // 画像をZIPに追加
-    try {
-      // 画像を取得
-      const imageResponse = await fetch(project.imageUrl);
-      const imageBlob = await imageResponse.blob();
-      zip.file("image.png", imageBlob);
-      
-      // プレビュー画像を生成して追加
-      if (comicRef.current) {
-        const canvas = await html2canvas(comicRef.current, {
-          allowTaint: true,
-          useCORS: true,
-          scale: 1
-        });
-        
-        const previewBlob = await new Promise<Blob | null>((resolve) => {
-          canvas.toBlob(resolve);
-        });
-        
-        if (previewBlob) {
-          zip.file("preview.png", previewBlob);
-        }
-      }
-      
-      // ZIPを生成してダウンロード
-      const zipBlob = await zip.generateAsync({type: "blob"});
-      saveAs(zipBlob, `${project.name}.zip`);
-    } catch (error) {
-      console.error('ZIPの作成に失敗しました', error);
-      throw error;
     }
   };
   
@@ -1456,16 +1475,18 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
             value={saveMethod}
             onChange={handleSaveMethodChange}
             className="p-2 border rounded"
+            disabled={isSaving}
           >
             <option value="direct">原画像を保存</option>
             <option value="html2canvas">吹き出し込みで保存</option>
           </select>
           
           <button
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className={`px-4 py-2 ${isSaving ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded`}
             onClick={handleDownload}
+            disabled={isSaving}
           >
-            画像を保存
+            {isSaving ? '保存中...' : '画像を保存'}
           </button>
         </div>
       </div>
