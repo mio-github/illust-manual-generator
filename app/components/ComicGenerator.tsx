@@ -6,7 +6,7 @@ import TextEditor from './TextEditor';
 import { SupportedLanguage } from '@/utils/openai';
 import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
-import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import JSZip from 'jszip';
 import * as ContextMenu from '@radix-ui/react-context-menu';
@@ -437,9 +437,8 @@ function DraggableBubble({
 }
 
 // ドロップエリアコンポーネント
-function BubbleDropArea({ children, onDragEnd }: { 
+function BubbleDropArea({ children }: { 
   children: React.ReactNode; 
-  onDragEnd: (id: string, updates: Partial<BubblePosition>) => void 
 }) {
   const { setNodeRef } = useDroppable({
     id: 'bubble-drop-area'
@@ -792,11 +791,8 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     setBubblePositions(newBubbles);
   };
   
-  const handleDragEnd = (id: string, updates: Partial<BubblePosition>) => {
-    if (id.startsWith('bubble-')) {
-      const index = parseInt(id.replace('bubble-', ''));
-      handleBubbleDrag(index, updates);
-    }
+  const handleDragEnd = (event: DragEndEvent) => {
+    console.log('Drag ended', event);
   };
   
   const handleDownload = async () => {
@@ -860,9 +856,6 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        // 実際の表示サイズに合わせる
-        width: comicRef.current.offsetWidth,
-        height: comicRef.current.offsetHeight,
         // 元の画像の縦横比を保持
         onclone: (document, element) => {
           // キャプチャ前に要素のスタイルを調整
@@ -1104,22 +1097,24 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
               />
               
               {/* 吹き出し編集エリア */}
-              <BubbleDropArea onDragEnd={handleDragEnd}>
-                {bubblePositions.map((bubble, idx) => (
-                  <DraggableBubble 
-                    key={idx}
-                    bubble={bubble}
-                    index={idx}
-                    onUpdate={handleBubbleDrag}
-                    onTextChange={handleBubbleTextChange}
-                    onResize={handleBubbleResize}
-                    onDelete={handleBubbleDelete}
-                    onStyleChange={handleBubbleStyleChange}
-                    onFontChange={handleBubbleFontChange}
-                    onOpacityChange={handleBubbleOpacityChange}
-                  />
-                ))}
-              </BubbleDropArea>
+              <DndContext onDragEnd={handleDragEnd}>
+                <BubbleDropArea>
+                  {bubblePositions.map((bubble, idx) => (
+                    <DraggableBubble 
+                      key={idx}
+                      bubble={bubble}
+                      index={idx}
+                      onUpdate={handleBubbleDrag}
+                      onTextChange={handleBubbleTextChange}
+                      onResize={handleBubbleResize}
+                      onDelete={handleBubbleDelete}
+                      onStyleChange={handleBubbleStyleChange}
+                      onFontChange={handleBubbleFontChange}
+                      onOpacityChange={handleBubbleOpacityChange}
+                    />
+                  ))}
+                </BubbleDropArea>
+              </DndContext>
             </div>
             
             {/* キャプション表示 */}
