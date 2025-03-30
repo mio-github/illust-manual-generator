@@ -10,7 +10,8 @@ import {
 } from '@/utils/openai';
 import { checkApiKey } from '@/utils/config';
 
-export const maxDuration = 180; // 3 minutes timeout
+// hobbyプランでは60秒が上限
+export const maxDuration = 60; // 1 minute timeout
 
 export async function POST(req: NextRequest) {
   // リクエストIDを生成（ログ追跡用）
