@@ -3,10 +3,13 @@
  * 環境変数から値を読み込み、デフォルト値を提供します
  */
 
-import 'server-only';
-
 // 環境変数から設定を読み込む
 const checkApiKey = () => {
+  // クライアント側では環境変数にアクセスできないため、サーバー側でのみ実行
+  if (typeof window !== 'undefined') {
+    return undefined; // クライアント側では空値を返す
+  }
+  
   const apiKey = process.env.OPENAI_API_KEY;
   
   if (!apiKey) {
@@ -31,13 +34,15 @@ export const openaiConfig = {
   temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.7'),
 };
 
-// 環境変数の設定状況をログ出力
-console.log('OpenAI設定情報:', {
-  model: openaiConfig.model,
-  maxTokens: openaiConfig.maxTokens,
-  temperature: openaiConfig.temperature,
-  apiKeyConfigured: openaiConfig.apiKey ? '設定済み' : '未設定'
-});
+// 環境変数の設定状況をログ出力（サーバー側でのみ実行）
+if (typeof window === 'undefined') {
+  console.log('OpenAI設定情報:', {
+    model: openaiConfig.model,
+    maxTokens: openaiConfig.maxTokens,
+    temperature: openaiConfig.temperature,
+    apiKeyConfigured: openaiConfig.apiKey ? '設定済み' : '未設定'
+  });
+}
 
 // 画像生成関連設定
 export const imageGenerationConfig = {
