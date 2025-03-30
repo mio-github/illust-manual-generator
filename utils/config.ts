@@ -24,6 +24,18 @@ export const checkApiKey = () => {
     // APIキーの末尾6文字を表示（セキュリティのため全体は表示しない）
     const lastSixChars = apiKey.slice(-6);
     console.log(`OPENAI_API_KEY: 有効なフォーマットで設定されています (末尾6文字: ${lastSixChars})`);
+    
+    // 末尾がZYmPYAのキーかどうかを確認（Vercel環境変数を使用していることを確認）
+    if (lastSixChars === 'ZYmPYA') {
+      console.log('INFO: Vercel環境変数のAPIキーを使用しています');
+    } else {
+      console.warn('警告: Vercel環境変数ではなくローカルのAPIキーを使用しています');
+      // もしVercel環境でのデプロイ時は常にVercel環境変数を使用するようにする
+      if (process.env.VERCEL_ENV) {
+        console.log('INFO: Vercel環境を検出しました。Vercel環境変数を優先します');
+      }
+    }
+    
     return apiKey;
   } else {
     console.error('警告: OPENAI_API_KEYが無効な形式です。「sk-」で始まるAPIキーを設定してください。');
@@ -45,7 +57,8 @@ if (typeof window === 'undefined') {
     model: openaiConfig.model,
     maxTokens: openaiConfig.maxTokens,
     temperature: openaiConfig.temperature,
-    apiKeyConfigured: openaiConfig.apiKey ? '設定済み' : '未設定'
+    apiKeyConfigured: openaiConfig.apiKey ? '設定済み' : '未設定',
+    environment: process.env.VERCEL_ENV || 'local'
   });
 }
 

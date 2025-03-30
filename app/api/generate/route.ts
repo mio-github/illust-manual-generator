@@ -20,12 +20,20 @@ export async function POST(req: NextRequest) {
   // 処理開始時間を記録
   const startTime = Date.now();
   
-  // APIキーのチェック
-  const apiKey = checkApiKey();
+  // APIキーのチェック - Vercel環境変数を優先する
+  const apiKey = process.env.VERCEL_ENV 
+    ? process.env.OPENAI_API_KEY // Vercel環境でのAPIキー
+    : checkApiKey(); // ローカル環境でのAPIキー
+
   if (!apiKey) {
+    console.error(`[${requestId}] APIキーが設定されていません (環境: ${process.env.VERCEL_ENV || 'local'})`);
     return NextResponse.json({ 
-      error: 'OpenAI API Keyが設定されていません。「.env.local」ファイルにOPENAI_API_KEYを設定してください。' 
+      error: 'OpenAI API Keyが設定されていません。Vercel環境変数または「.env.local」ファイルにOPENAI_API_KEYを設定してください。' 
     }, { status: 400 });
+  } else {
+    // APIキーの末尾を表示してデバッグに役立てる
+    const lastSixChars = apiKey.slice(-6);
+    console.log(`[${requestId}] 使用するAPIキー末尾6文字: ${lastSixChars} (環境: ${process.env.VERCEL_ENV || 'local'})`);
   }
   
   try {
