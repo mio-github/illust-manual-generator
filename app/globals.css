@@ -116,6 +116,19 @@ footer {
 
 .exporting .bubble-editor {
   border: none !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.exporting .ui-control {
+  display: none !important;
+}
+
+.exporting .bubble-editor.bubble-anime::before,
+.exporting .bubble-editor.bubble-anime::after,
+.exporting .bubble-editor.bubble-think::before,
+.exporting .bubble-editor.bubble-think::after {
+  display: block !important;
+  border-color: rgba(51, 51, 51, 0.85) transparent !important;
 }
 
 /* 吹き出しのスタイル（出力用） */
@@ -124,4 +137,85 @@ footer {
   box-shadow: none !important;
   border-radius: 0.5rem;
   padding: 0.5rem;
+}
+
+/* 吹き出しスタイル */
+.bubble-anime {
+  position: relative;
+  border: 2px solid #333;
+  border-radius: 1rem;
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.bubble-anime::before {
+  content: "";
+  position: absolute;
+  bottom: -15px;
+  left: 15px;
+  border-width: 15px 15px 0;
+  border-style: solid;
+  border-color: #333 transparent;
+  display: block;
+  width: 0;
+}
+
+.bubble-anime::after {
+  content: "";
+  position: absolute;
+  bottom: -12px;
+  left: 17px;
+  border-width: 13px 13px 0;
+  border-style: solid;
+  border-color: white transparent;
+  display: block;
+  width: 0;
+}
+
+.bubble-round {
+  border: 2px solid #333;
+  border-radius: 2rem;
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.bubble-cloud {
+  border: 2px solid #333;
+  border-radius: 50% 50% 50% 20%;
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.bubble-think {
+  position: relative;
+  border: 2px solid #333;
+  border-radius: 2rem;
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.bubble-think::before {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 10px;
+  width: 10px;
+  height: 10px;
+  background-color: white;
+  border: 2px solid #333;
+  border-radius: 50%;
+}
+
+.bubble-think::after {
+  content: "";
+  position: absolute;
+  bottom: -20px;
+  left: 5px;
+  width: 5px;
+  height: 5px;
+  background-color: white;
+  border: 2px solid #333;
+  border-radius: 50%;
+}
+
+.bubble-shout {
+  border: 2px solid #333;
+  background-color: rgba(255, 255, 255, 0.85);
+  clip-path: polygon(0% 0%, 100% 0%, 90% 70%, 100% 100%, 0% 100%);
 } 

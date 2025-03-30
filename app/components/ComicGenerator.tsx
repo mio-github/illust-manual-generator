@@ -9,6 +9,9 @@ import html2canvas from 'html2canvas';
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import JSZip from 'jszip';
+import * as ContextMenu from '@radix-ui/react-context-menu';
+import * as Popover from '@radix-ui/react-popover';
+import { appConfig } from '@/utils/config';
 
 interface Panel {
   imageUrl: string;
@@ -30,6 +33,11 @@ interface BubblePosition {
   color: string;
   writing: 'horizontal' | 'vertical';
   fontFamily: string;
+  fontWeight?: string;
+  opacity?: number;
+  bubbleStyle?: 'anime' | 'round' | 'cloud' | 'think' | 'shout';
+  bubbleColor?: string;
+  borderWidth?: number;
 }
 
 interface ComicProject {
@@ -47,6 +55,204 @@ interface ComicGeneratorProps {
   panelDialogues?: string[][];
 }
 
+// 右クリックメニューコンポーネント
+function BubbleContextMenu({ 
+  children, 
+  bubble, 
+  index, 
+  onUpdate,
+  onDelete,
+  onStyleChange,
+  onFontChange,
+  onOpacityChange
+}: { 
+  children: React.ReactNode;
+  bubble: BubblePosition;
+  index: number;
+  onUpdate: (index: number, updates: Partial<BubblePosition>) => void;
+  onDelete: (index: number) => void;
+  onStyleChange: (index: number, style: string) => void;
+  onFontChange: (index: number, font: string) => void;
+  onOpacityChange: (index: number, opacity: number) => void;
+}) {
+  // フォントサイズの変更
+  const changeFontSize = (size: number) => {
+    const newSize = Math.max(10, Math.min(36, bubble.fontSize + size));
+    onUpdate(index, { fontSize: newSize });
+  };
+  
+  // 書き方の変更（縦書き/横書き）
+  const toggleWritingMode = () => {
+    const newMode = bubble.writing === 'horizontal' ? 'vertical' : 'horizontal';
+    onUpdate(index, { writing: newMode });
+  };
+  
+  // 太さの変更
+  const toggleFontWeight = () => {
+    const newWeight = bubble.fontWeight === 'bold' ? 'normal' : 'bold';
+    onUpdate(index, { fontWeight: newWeight });
+  };
+  
+  // 透明度の変更
+  const handleOpacityChange = (opacity: number) => {
+    onOpacityChange(index, opacity);
+  };
+
+  // 吹き出しスタイルの変更
+  const bubbleStyles = [
+    { id: 'anime', label: 'アニメ風' },
+    { id: 'round', label: '丸型' },
+    { id: 'cloud', label: 'もくもく' },
+    { id: 'think', label: '考え事' },
+    { id: 'shout', label: '叫び' }
+  ];
+  
+  // フォントの変更
+  const fontOptions = [
+    { value: "'Kosugi Maru', sans-serif", label: '丸ゴシック' },
+    { value: "'M PLUS Rounded 1c', sans-serif", label: '丸フォント' },
+    { value: "sans-serif", label: '標準' },
+    { value: "serif", label: '明朝' },
+    { value: "cursive", label: '手書き' },
+    { value: "fantasy", label: 'ポップ' }
+  ];
+  
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        {children}
+      </ContextMenu.Trigger>
+      
+      <ContextMenu.Portal>
+        <ContextMenu.Content 
+          className="min-w-[220px] bg-white rounded-md p-1 shadow-lg border border-gray-200 z-50"
+          sideOffset={5}
+          align="start"
+        >
+          <ContextMenu.Label className="pl-2 py-1.5 text-xs text-gray-500 font-semibold">吹き出し設定</ContextMenu.Label>
+          
+          <ContextMenu.Separator className="h-px bg-gray-200 my-1" />
+          
+          <ContextMenu.Sub>
+            <ContextMenu.SubTrigger className="flex items-center justify-between px-2 py-1.5 text-sm outline-none hover:bg-blue-50 rounded cursor-default">
+              <span>吹き出しスタイル</span>
+              <span className="ml-auto">→</span>
+            </ContextMenu.SubTrigger>
+            
+            <ContextMenu.Portal>
+              <ContextMenu.SubContent 
+                className="min-w-[180px] bg-white rounded-md p-1 shadow-lg border border-gray-200"
+                alignOffset={-5}
+                sideOffset={2}
+              >
+                {bubbleStyles.map(style => (
+                  <ContextMenu.Item 
+                    key={style.id}
+                    className={`flex px-2 py-1.5 text-sm outline-none hover:bg-blue-50 rounded cursor-default ${bubble.bubbleStyle === style.id ? 'font-semibold text-blue-600' : ''}`}
+                    onClick={() => onStyleChange(index, style.id)}
+                  >
+                    {style.label}
+                  </ContextMenu.Item>
+                ))}
+              </ContextMenu.SubContent>
+            </ContextMenu.Portal>
+          </ContextMenu.Sub>
+          
+          <ContextMenu.Sub>
+            <ContextMenu.SubTrigger className="flex items-center justify-between px-2 py-1.5 text-sm outline-none hover:bg-blue-50 rounded cursor-default">
+              <span>フォント</span>
+              <span className="ml-auto">→</span>
+            </ContextMenu.SubTrigger>
+            
+            <ContextMenu.Portal>
+              <ContextMenu.SubContent 
+                className="min-w-[180px] bg-white rounded-md p-1 shadow-lg border border-gray-200"
+                alignOffset={-5}
+                sideOffset={2}
+              >
+                {fontOptions.map(font => (
+                  <ContextMenu.Item 
+                    key={font.value}
+                    className={`flex px-2 py-1.5 text-sm outline-none hover:bg-blue-50 rounded cursor-default ${bubble.fontFamily === font.value ? 'font-semibold text-blue-600' : ''}`}
+                    onClick={() => onFontChange(index, font.value)}
+                    style={{ fontFamily: font.value }}
+                  >
+                    {font.label}
+                  </ContextMenu.Item>
+                ))}
+              </ContextMenu.SubContent>
+            </ContextMenu.Portal>
+          </ContextMenu.Sub>
+          
+          <ContextMenu.Item 
+            className="flex items-center px-2 py-1.5 text-sm outline-none hover:bg-blue-50 rounded cursor-default"
+            onClick={toggleWritingMode}
+          >
+            {bubble.writing === 'horizontal' ? '縦書きに変更' : '横書きに変更'}
+          </ContextMenu.Item>
+          
+          <ContextMenu.Item 
+            className="flex items-center px-2 py-1.5 text-sm outline-none hover:bg-blue-50 rounded cursor-default"
+            onClick={toggleFontWeight}
+          >
+            {bubble.fontWeight === 'bold' ? '太字解除' : '太字にする'}
+          </ContextMenu.Item>
+          
+          <ContextMenu.Separator className="h-px bg-gray-200 my-1" />
+          
+          <div className="px-2 py-1.5">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm">フォントサイズ: {bubble.fontSize}px</span>
+              <div className="flex">
+                <button 
+                  className="px-2 py-0.5 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                  onClick={() => changeFontSize(-1)}
+                >-</button>
+                <button 
+                  className="px-2 py-0.5 text-sm bg-gray-100 hover:bg-gray-200 rounded ml-1"
+                  onClick={() => changeFontSize(1)}
+                >+</button>
+              </div>
+            </div>
+            <input 
+              type="range" 
+              className="w-full" 
+              min="10" 
+              max="36" 
+              value={bubble.fontSize} 
+              onChange={(e) => onUpdate(index, { fontSize: Number(e.target.value) })}
+            />
+          </div>
+          
+          <div className="px-2 py-1.5">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm">背景の透明度: {Math.round((bubble.opacity || 0.85) * 100)}%</span>
+            </div>
+            <input 
+              type="range" 
+              className="w-full" 
+              min="0.3" 
+              max="1" 
+              step="0.05"
+              value={bubble.opacity || 0.85} 
+              onChange={(e) => handleOpacityChange(Number(e.target.value))}
+            />
+          </div>
+          
+          <ContextMenu.Separator className="h-px bg-gray-200 my-1" />
+          
+          <ContextMenu.Item 
+            className="flex items-center px-2 py-1.5 text-sm outline-none hover:bg-red-50 text-red-600 rounded cursor-default"
+            onClick={() => onDelete(index)}
+          >
+            この吹き出しを削除
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
+  );
+}
+
 // ドラッガブルな吹き出しコンポーネント
 function DraggableBubble({ 
   bubble, 
@@ -55,17 +261,19 @@ function DraggableBubble({
   onTextChange, 
   onResize,
   onDelete,
-  onWritingModeChange,
-  onFontChange 
+  onStyleChange,
+  onFontChange,
+  onOpacityChange
 }: { 
   bubble: BubblePosition; 
   index: number; 
-  onUpdate: (index: number, x: number, y: number) => void;
+  onUpdate: (index: number, updates: Partial<BubblePosition>) => void;
   onTextChange: (index: number, text: string) => void;
   onResize: (index: number, width: number, height: number) => void;
   onDelete: (index: number) => void;
-  onWritingModeChange: (index: number, mode: 'horizontal' | 'vertical') => void;
-  onFontChange: (index: number, fontFamily: string) => void;
+  onStyleChange: (index: number, style: string) => void;
+  onFontChange: (index: number, font: string) => void;
+  onOpacityChange: (index: number, opacity: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `bubble-${index}`,
@@ -101,6 +309,36 @@ function DraggableBubble({
     document.addEventListener('mouseup', onMouseUp);
   };
   
+  // 吹き出しスタイルに応じたクラスを生成
+  const getBubbleStyle = () => {
+    const style = bubble.bubbleStyle || 'anime';
+    const opacity = bubble.opacity || 0.85;
+    let className = `absolute border-2 bg-white rounded p-2 cursor-move pointer-events-auto bubble-editor `;
+    
+    // 基本スタイルをクラスに変換
+    switch (style) {
+      case 'anime':
+        className += 'bubble-anime';
+        break;
+      case 'round':
+        className += 'bubble-round';
+        break;
+      case 'cloud':
+        className += 'bubble-cloud';
+        break;
+      case 'think':
+        className += 'bubble-think';
+        break;
+      case 'shout':
+        className += 'bubble-shout';
+        break;
+      default:
+        className += 'bubble-anime';
+    }
+    
+    return className;
+  };
+  
   // transform値をそのまま適用するのではなく、スタイルとして管理
   const styleObj: React.CSSProperties = {
     position: 'absolute',
@@ -108,54 +346,56 @@ function DraggableBubble({
     top: `${bubble.y}px`,
     width: `${bubble.width}px`,
     minHeight: `${bubble.height}px`,
-    fontFamily: bubble.fontFamily || 'sans-serif',
+    fontFamily: bubble.fontFamily || appConfig.defaultBubbleStyle.fontFamily,
+    fontSize: `${bubble.fontSize || appConfig.defaultBubbleStyle.fontSize}px`,
+    fontWeight: bubble.fontWeight || appConfig.defaultBubbleStyle.fontWeight,
+    color: bubble.color || appConfig.defaultBubbleStyle.color,
+    backgroundColor: `rgba(255, 255, 255, ${bubble.opacity || 0.85})`,
+    borderColor: bubble.bubbleColor || appConfig.defaultBubbleStyle.borderColor,
+    borderWidth: bubble.borderWidth || appConfig.defaultBubbleStyle.borderWidth,
     transform: transform ? CSS.Transform.toString(transform) : undefined,
     writingMode: bubble.writing === 'vertical' ? 'vertical-rl' as const : 'horizontal-tb' as const,
   };
   
   return (
-    <div
-      ref={setNodeRef}
-      style={styleObj}
-      className="absolute border-2 border-blue-500 bg-white bg-opacity-70 rounded p-2 cursor-move pointer-events-auto bubble-editor"
-      {...attributes}
-      {...listeners}
+    <BubbleContextMenu
+      bubble={bubble}
+      index={index}
+      onUpdate={onUpdate}
+      onDelete={onDelete}
+      onStyleChange={onStyleChange}
+      onFontChange={onFontChange}
+      onOpacityChange={onOpacityChange}
     >
-      <div 
-        contentEditable 
-        suppressContentEditableWarning
-        className="focus:outline-none w-full"
-        style={{
-          fontFamily: bubble.fontFamily,
-          fontSize: `${bubble.fontSize}px`,
-          color: bubble.color,
-          writingMode: bubble.writing === 'vertical' ? 'vertical-rl' : 'horizontal-tb'
-        }}
-        onBlur={(e) => onTextChange(index, e.currentTarget.textContent || '')}
+      <div
+        ref={setNodeRef}
+        style={styleObj}
+        className={getBubbleStyle()}
+        {...attributes}
+        {...listeners}
       >
-        {bubble.text}
-      </div>
-      
-      <div 
-        className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize bubble-control"
-        onMouseDown={handleResizeStart}
-      />
-      
-      <div className="absolute top-0 right-0 flex space-x-1 bubble-control">
-        <button
-          className="text-xs bg-blue-100 text-blue-600 rounded px-1"
-          onClick={() => onWritingModeChange(index, bubble.writing === 'horizontal' ? 'vertical' : 'horizontal')}
+        <div 
+          contentEditable 
+          suppressContentEditableWarning
+          className="focus:outline-none w-full"
+          style={{
+            fontFamily: bubble.fontFamily || appConfig.defaultBubbleStyle.fontFamily,
+            fontSize: `${bubble.fontSize || appConfig.defaultBubbleStyle.fontSize}px`,
+            fontWeight: bubble.fontWeight || appConfig.defaultBubbleStyle.fontWeight,
+            color: bubble.color || appConfig.defaultBubbleStyle.color,
+            writingMode: bubble.writing === 'vertical' ? 'vertical-rl' : 'horizontal-tb'
+          }}
+          onBlur={(e) => onTextChange(index, e.currentTarget.textContent || '')}
         >
-          {bubble.writing === 'horizontal' ? '縦' : '横'}
-        </button>
-        <button
-          className="text-xs bg-red-100 text-red-600 rounded px-1"
-          onClick={() => onDelete(index)}
-        >
-          ×
-        </button>
+          {bubble.text}
+        </div>
+        
+        <div 
+          className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize bubble-control"
+          onMouseDown={handleResizeStart}
+        />
       </div>
-    </div>
+    </BubbleContextMenu>
   );
 }
 
@@ -408,6 +648,18 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     setBubblePositions(newBubbles);
   };
   
+  const handleBubbleOpacityChange = (index: number, opacity: number) => {
+    const newBubbles = [...bubblePositions];
+    newBubbles[index].opacity = opacity;
+    setBubblePositions(newBubbles);
+  };
+  
+  const handleBubbleStyleChange = (index: number, style: string) => {
+    const newBubbles = [...bubblePositions];
+    newBubbles[index].bubbleStyle = style as 'anime' | 'round' | 'cloud' | 'think' | 'shout';
+    setBubblePositions(newBubbles);
+  };
+  
   const handleDragEnd = (id: string, x: number, y: number) => {
     if (id.startsWith('bubble-')) {
       const index = parseInt(id.replace('bubble-', ''));
@@ -442,49 +694,38 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
         });
       }
       
-      // コンテンツのサイズを取得して適切なサイズでキャプチャ
-      const contentEl = comicRef.current;
-      const contentRect = contentEl.getBoundingClientRect();
+      // 画像の縦横比を取得
+      const originalWidth = imageRef.current?.naturalWidth || 1024;
+      const originalHeight = imageRef.current?.naturalHeight || 1024;
       
-      // HTMLを画像としてキャプチャ
-      const canvas = await html2canvas(contentEl, {
-        allowTaint: true,
-        useCORS: true,
-        scale: 2, // 高品質化
-        backgroundColor: '#FFFFFF',
-        width: contentRect.width,
-        height: contentRect.height, 
-        // UI要素とバブル枠線を除外
+      // html2canvasでキャプチャ
+      const canvas = await html2canvas(comicRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        width: comicRef.current.clientWidth,
+        height: comicRef.current.clientHeight,
+        // 元の画像の縦横比を保持
         onclone: (document, element) => {
-          // クローンされた要素内の全ての編集用コントロールを非表示に
-          const clonedControls = element.querySelectorAll('.bubble-control');
-          clonedControls.forEach(el => {
-            (el as HTMLElement).style.display = 'none';
-          });
-          
-          // 全ての吹き出し編集枠線を透明に
-          const bubbles = element.querySelectorAll('.bubble-editor');
-          bubbles.forEach(bubble => {
-            (bubble as HTMLElement).style.border = 'none';
-            (bubble as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
-          });
-          
-          return element;
+          // キャプチャ前に要素の縦横比を調整
+          const clonedElement = element as HTMLElement;
+          clonedElement.style.width = `${originalWidth}px`;
+          clonedElement.style.height = `${originalHeight}px`;
         }
       });
       
-      // Canvas to Blob
-      canvas.toBlob((blob: Blob | null) => {
+      // 画像ファイル名を設定
+      const fileName = projectName || `illustrated-guide-${new Date().toISOString().slice(0, 10)}`;
+      
+      // キャンバスを画像に変換してダウンロード
+      canvas.toBlob(blob => {
         if (blob) {
-          saveAs(blob, `${projectName || 'navigation-illust'}.png`);
+          saveAs(blob, `${fileName}.png`);
         }
-        
-        // クラスを元に戻す
-        comicRef.current?.classList.remove('exporting');
-        
-        // 編集モードを元に戻す
-        setEditMode(prevEditMode);
-      });
+      }, 'image/png');
+      
+      // 元の状態に戻す
+      comicRef.current.classList.remove('exporting');
+      setEditMode(prevEditMode);
       
     } catch (error) {
       console.error('画像のダウンロードに失敗しました', error);
@@ -702,8 +943,9 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                         onTextChange={handleBubbleTextChange}
                         onResize={handleBubbleResize}
                         onDelete={handleBubbleDelete}
-                        onWritingModeChange={handleBubbleWritingChange}
+                        onStyleChange={handleBubbleStyleChange}
                         onFontChange={handleBubbleFontChange}
+                        onOpacityChange={handleBubbleOpacityChange}
                       />
                     ))}
                   </>
