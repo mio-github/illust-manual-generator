@@ -249,3 +249,67 @@ export async function generateDialogues(prompt: string, panelCount: number): Pro
     return defaultDialogues;
   }
 }
+
+/**
+ * 吹き出しのみで画像を生成する関数（セリフなし）
+ * @param prompt 画像生成のためのプロンプト
+ * @param sceneDescription シーンの説明
+ * @param options 画像生成オプション
+ * @returns 生成された画像のURL
+ */
+export async function generateSceneWithoutText(
+  prompt: string,
+  sceneDescription: string,
+  options: {
+    model?: string;
+    quality?: string;
+    size?: string;
+  } = {}
+) {
+  try {
+    console.log('[シーン画像生成開始]', { 
+      prompt: prompt.substring(0, 50) + '...',
+      sceneDescription: sceneDescription.substring(0, 50) + '...'
+    });
+    
+    // 特別なプロンプトを作成して、セリフなしで吹き出しのみを含む画像を生成
+    const enhancedPrompt = `
+      ${prompt}
+      シーン説明: ${sceneDescription}
+      
+      重要: この画像には吹き出しを含めてください。ただし、吹き出しの中は空白にしてください。セリフは入れないでください。
+      日本語漫画のスタイルで、単一のシーンとして描いてください。複数のコマは描かないでください。
+      登場人物の表情から感情や状況が伝わるようにしてください。
+    `.trim();
+    
+    return await generateImage(enhancedPrompt, options);
+  } catch (error) {
+    console.error('[シーン画像生成エラー]', error);
+    // エラーの場合はプレースホルダー画像を返す
+    return `https://placehold.co/600x400?text=${encodeURIComponent('シーン画像生成エラー')}`;
+  }
+}
+
+/**
+ * 複数の画像を合成して4コマ漫画レイアウトを作成する（実装予定）
+ * @param imageUrls 画像URLの配列
+ * @param dialogues セリフの配列
+ * @param title タイトル
+ * @returns 合成された画像のURL
+ */
+export async function composePanelsIntoComic(
+  imageUrls: string[],
+  dialogues: string[][],
+  title: string = ''
+): Promise<string> {
+  // TODO: 実際にはCanvas APIやCloudinary等を使った画像合成処理を実装する
+  console.log('[コマ合成] この機能は開発中です', {
+    images: imageUrls.length,
+    dialogues: dialogues.length,
+    title
+  });
+  
+  // 現在の実装では、ひとまず最初の画像を返す
+  // 実際の実装では、ここで画像を取得して合成する処理を追加する
+  return imageUrls[0] || `https://placehold.co/800x1000?text=${encodeURIComponent('コマ合成機能開発中')}`;
+}

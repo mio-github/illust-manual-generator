@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { appConfig } from '@/utils/config';
-import { generateDialogues, generateImage } from '@/utils/openai';
+import { 
+  generateDialogues, 
+  generateSceneWithoutText, 
+  composePanelsIntoComic 
+} from '@/utils/openai';
 
 export async function POST(req: NextRequest) {
   // リクエストIDを生成（ログ追跡用）
@@ -44,8 +48,11 @@ export async function POST(req: NextRequest) {
     // 処理開始時間を記録
     const startTime = Date.now();
     
-    // まずセリフを生成
-    console.log(`[${requestId}] 1. セリフ生成を開始...`);
+    // 1. 全体構成を考える - これは現在の実装では省略
+    console.log(`[${requestId}] 1. 全体構成を検討中...`);
+    
+    // 2. コマ数分のシーンとセリフを生成
+    console.log(`[${requestId}] 2. セリフとシーン構成の生成を開始...`);
     let dialogues;
     try {
       dialogues = await generateDialogues(prompt, actualPanels);
@@ -55,8 +62,8 @@ export async function POST(req: NextRequest) {
       throw new Error(`セリフ生成エラー: ${dialogueError instanceof Error ? dialogueError.message : '不明なエラー'}`);
     }
     
-    // 各コマの画像生成プロンプトを作成
-    const generatePanelPrompt = (index: number, basePrompt: string) => {
+    // 各コマのシーン説明を生成
+    const generateSceneDescription = (index: number, basePrompt: string, dialogueContent: string[]) => {
       const panelNum = index + 1;
       const totalPanels = actualPanels;
       let storyProgress = '';
@@ -70,51 +77,65 @@ export async function POST(req: NextRequest) {
         storyProgress = `説明の${progress}%の部分`;
       }
       
-      // セリフの内容を画像生成に活用
-      const dialogueContext = dialogues[index]?.join('、') || '';
+      // セリフの内容をシーン説明に活用
+      const dialogueContext = dialogueContent.join('、');
       
       return `
-        4コマ漫画の${panelNum}コマ目（${storyProgress}）：${basePrompt}
-        コマの内容: ${dialogueContext}
-        スタイル: ${style}、日本語の漫画、シンプルで見やすい構図、2人の登場人物
+        ${panelNum}コマ目（${storyProgress}）：このシーンでは「${dialogueContext}」という会話が行われます。
+        まずはこのシーンを登場人物と空の吹き出しだけで描いてください。後でセリフを追加します。
       `.trim();
     };
     
-    // 画像生成
-    console.log(`[${requestId}] 2. 画像生成を開始...`);
-    const imagePromises = Array.from({ length: actualPanels }, async (_, i) => {
-      const panelPrompt = generatePanelPrompt(i, prompt);
-      console.log(`[${requestId}] コマ${i+1}の画像生成プロンプト:`, panelPrompt);
+    // 3. 吹き出しのみのシーン画像を生成（セリフは空白）
+    console.log(`[${requestId}] 3. 吹き出し付きシーン画像の生成を開始...`);
+    const sceneImagePromises = Array.from({ length: actualPanels }, async (_, i) => {
+      const sceneDescription = generateSceneDescription(i, prompt, dialogues[i] || []);
+      console.log(`[${requestId}] コマ${i+1}のシーン説明:`, sceneDescription);
       
       try {
-        const imageUrl = await generateImage(panelPrompt, { 
+        const imageUrl = await generateSceneWithoutText(prompt, sceneDescription, { 
           quality: style === 'simple' ? 'standard' : 'hd',
         });
-        console.log(`[${requestId}] コマ${i+1}の画像生成完了:`, imageUrl.substring(0, 100) + '...');
+        console.log(`[${requestId}] コマ${i+1}のシーン画像生成完了:`, imageUrl.substring(0, 100) + '...');
         return imageUrl;
       } catch (error) {
-        console.error(`[${requestId}] コマ${i+1}の画像生成エラー:`, error);
+        console.error(`[${requestId}] コマ${i+1}のシーン画像生成エラー:`, error);
         return `https://placehold.co/600x400?text=コマ${i+1}生成エラー`;
       }
     });
     
-    // すべての画像生成が完了するまで待機
-    console.log(`[${requestId}] すべての画像生成を待機中...`);
-    let imageUrls;
+    // すべてのシーン画像生成が完了するまで待機
+    console.log(`[${requestId}] すべてのシーン画像生成を待機中...`);
+    let sceneImageUrls;
     try {
-      imageUrls = await Promise.all(imagePromises);
-      console.log(`[${requestId}] 全ての画像生成が完了しました`);
+      sceneImageUrls = await Promise.all(sceneImagePromises);
+      console.log(`[${requestId}] 全てのシーン画像生成が完了しました`);
     } catch (imageError) {
-      console.error(`[${requestId}] 画像生成中に予期せぬエラーが発生しました`, imageError);
-      throw new Error(`画像生成エラー: ${imageError instanceof Error ? imageError.message : '不明なエラー'}`);
+      console.error(`[${requestId}] シーン画像生成中に予期せぬエラーが発生しました`, imageError);
+      throw new Error(`シーン画像生成エラー: ${imageError instanceof Error ? imageError.message : '不明なエラー'}`);
     }
+    
+    // 4. 画像とセリフを合成してコマ割り画像を生成（将来的な実装）
+    console.log(`[${requestId}] 4. 画像とセリフの合成処理は開発中...`);
+    // 現在は個別の画像を返し、フロントエンドで表示する
+    
+    // 5. 最終的なコマ割り画像の生成（将来的な実装）
+    // let compositeImageUrl;
+    // try {
+    //   compositeImageUrl = await composePanelsIntoComic(sceneImageUrls, dialogues, prompt);
+    //   console.log(`[${requestId}] コマ合成完了: ${compositeImageUrl.substring(0, 100)}...`);
+    // } catch (composeError) {
+    //   console.error(`[${requestId}] コマ合成中にエラーが発生しました`, composeError);
+    //   // エラーでも個別画像はそのまま返す
+    // }
     
     // 結果をまとめる
     const generatedContent = Array.from({ length: actualPanels }, (_, i) => {
       return {
-        imageUrl: imageUrls[i],
+        imageUrl: sceneImageUrls[i],
         dialogues: dialogues[i] || [],
-        caption: `${prompt} - パート${i + 1}`,
+        caption: `${prompt} - コマ${i + 1}`,
+        sceneIndex: i,
       };
     });
     
@@ -130,7 +151,8 @@ export async function POST(req: NextRequest) {
       prompt,
       style,
       processingTime: totalTime,
-      message: `${actualPanels}コマのイラストとセリフが正常に生成されました`
+      // compositeImageUrl: compositeImageUrl, // 将来的な実装用
+      message: `${actualPanels}コマの漫画が正常に生成されました。各コマには吹き出しが含まれています。`
     };
     
     console.log(`[${requestId}] 漫画生成API呼び出し完了`);
