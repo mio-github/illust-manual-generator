@@ -9,7 +9,7 @@ interface PromptFormProps {
 
 export default function PromptForm({ onSubmit, isGenerating }: PromptFormProps) {
   const [prompt, setPrompt] = useState('');
-  const [panels, setPanels] = useState(2);
+  const [panels, setPanels] = useState(4);
   const [style, setStyle] = useState('default');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -39,11 +39,14 @@ export default function PromptForm({ onSubmit, isGenerating }: PromptFormProps) 
           disabled={isGenerating}
           required
         />
+        <p className="text-xs text-gray-500 mt-1">
+          具体的な説明を書くほど、より適切な漫画が生成されます
+        </p>
       </div>
       
       <div className="mb-4">
         <label htmlFor="panels" className="block text-sm font-medium mb-1">
-          コマ数
+          コマ数 (最大6コマ)
         </label>
         <select
           id="panels"
@@ -55,7 +58,9 @@ export default function PromptForm({ onSubmit, isGenerating }: PromptFormProps) 
           <option value={1}>1コマ</option>
           <option value={2}>2コマ</option>
           <option value={3}>3コマ</option>
-          <option value={4}>4コマ</option>
+          <option value={4}>4コマ (デフォルト)</option>
+          <option value={5}>5コマ</option>
+          <option value={6}>6コマ</option>
         </select>
       </div>
       
@@ -74,6 +79,8 @@ export default function PromptForm({ onSubmit, isGenerating }: PromptFormProps) 
           <option value="manga">マンガ風</option>
           <option value="simple">シンプル</option>
           <option value="cute">かわいい</option>
+          <option value="business">ビジネス</option>
+          <option value="technical">技術的</option>
         </select>
       </div>
       
@@ -84,6 +91,12 @@ export default function PromptForm({ onSubmit, isGenerating }: PromptFormProps) 
       >
         {isGenerating ? '生成中...' : '漫画を生成'}
       </button>
+      
+      {isGenerating && (
+        <p className="text-sm text-center text-gray-600 mt-2">
+          データを処理中です。しばらくお待ちください...
+        </p>
+      )}
     </form>
   );
 }
