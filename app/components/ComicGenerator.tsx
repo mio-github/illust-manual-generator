@@ -298,9 +298,22 @@ function DraggableBubble({
     setStartSize({ width: bubble.width, height: bubble.height });
     
     const onMouseMove = (moveEvent: MouseEvent) => {
+      // 移動が小さすぎる場合は無視（微細な動きによる不要なリサイズを防ぐ）
       const deltaX = moveEvent.clientX - startPos.x;
       const deltaY = moveEvent.clientY - startPos.y;
-      onResize(index, Math.max(50, startSize.width + deltaX), Math.max(30, startSize.height + deltaY));
+      
+      // 小さな移動は無視（5px未満の移動は処理しない）
+      if (Math.abs(deltaX) < 5 && Math.abs(deltaY) < 5) return;
+      
+      // サイズ制限を適用
+      const newWidth = Math.max(80, startSize.width + deltaX);
+      const newHeight = Math.max(30, startSize.height + deltaY);
+      
+      // サイズの最大値も設定
+      const limitedWidth = Math.min(newWidth, 300);
+      const limitedHeight = Math.min(newHeight, 200);
+      
+      onResize(index, limitedWidth, limitedHeight);
     };
     
     const onMouseUp = () => {
@@ -362,7 +375,7 @@ function DraggableBubble({
   };
   
   useEffect(() => {
-    // transformがセットされたときに位置を更新
+    // transformがセットされたときに位置を更新（サイズは変更しない）
     if (transform) {
       const dx = transform.x;
       const dy = transform.y;
@@ -376,7 +389,7 @@ function DraggableBubble({
       // onUpdateを呼び出して位置を反映（直接DOMを操作しない）
       onUpdate(index, updatedStyle);
     }
-  }, [transform?.x, transform?.y]);
+  }, [transform?.x, transform?.y, bubble.x, bubble.y, index, onUpdate]);
   
   return (
     <BubbleContextMenu
@@ -519,11 +532,17 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                 const offsetX = bubbleIndex % 2 === 0 ? -80 : 80;
                 const offsetY = bubbleIndex > 1 ? 80 : 0;
                 
+                // テキストの長さに基づいて適切なサイズを計算
+                const textLength = text.length;
+                // 最小サイズと最大サイズの間で適切なサイズを決定
+                const bubbleWidth = Math.min(Math.max(100, textLength * 8), 200);
+                const bubbleHeight = Math.min(Math.max(40, Math.ceil(textLength / 10) * 20), 100);
+                
                 initialBubbles.push({
-                  x: panelCenterX + offsetX - 60, // 吹き出しの幅の半分を引いて中央に
-                  y: panelCenterY + offsetY - 20, // 吹き出しの高さの半分を引いて中央に
-                  width: 120,
-                  height: text.length > 20 ? 60 : 40, // テキスト長に応じてサイズ調整
+                  x: panelCenterX + offsetX - bubbleWidth / 2, // 吹き出しの幅の半分を引いて中央に
+                  y: panelCenterY + offsetY - bubbleHeight / 2, // 吹き出しの高さの半分を引いて中央に
+                  width: bubbleWidth,
+                  height: bubbleHeight,
                   text,
                   fontSize: 14,
                   color: '#000000',
@@ -542,8 +561,8 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
               defaultBubbles.push({
                 x: 100 + (i % 2) * 150,
                 y: 100 + Math.floor(i / 2) * 100,
-                width: 120,
-                height: 40,
+                width: Math.min(Math.max(100, text.length * 8), 200),
+                height: Math.min(Math.max(40, Math.ceil(text.length / 10) * 20), 100),
                 text,
                 fontSize: 14,
                 color: '#000000',
@@ -571,8 +590,8 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
           defaultBubbles.push({
             x: 100 + (i % 2) * 150,
             y: 100 + Math.floor(i / 2) * 100,
-            width: 120,
-            height: 40,
+            width: Math.min(Math.max(100, text.length * 8), 200),
+            height: Math.min(Math.max(40, Math.ceil(text.length / 10) * 20), 100),
             text,
             fontSize: 14,
             color: '#000000',
@@ -621,8 +640,8 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     const newBubble: BubblePosition = {
       x: 100,
       y: 100,
-      width: 120,
-      height: 40,
+      width: 150,
+      height: 60,
       text: '新しいセリフ',
       fontSize: 14,
       color: '#000000',
@@ -640,8 +659,9 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   
   const handleBubbleResize = (index: number, width: number, height: number) => {
     const newBubbles = [...bubblePositions];
-    newBubbles[index].width = width;
-    newBubbles[index].height = height;
+    // サイズの制限を設ける（最小値と最大値）
+    newBubbles[index].width = Math.min(Math.max(80, width), 300);
+    newBubbles[index].height = Math.min(Math.max(30, height), 200);
     setBubblePositions(newBubbles);
   };
   
@@ -1150,8 +1170,8 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                 initialBubbles.push({
                   x: 100 + (i % 2) * 150,
                   y: 100 + Math.floor(i / 2) * 100,
-                  width: 120,
-                  height: 40,
+                  width: Math.min(Math.max(100, text.length * 8), 200),
+                  height: Math.min(Math.max(40, Math.ceil(text.length / 10) * 20), 100),
                   text,
                   fontSize: 14,
                   color: '#000000',
