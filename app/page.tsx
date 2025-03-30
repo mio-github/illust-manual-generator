@@ -12,6 +12,7 @@ export default function Home() {
   const [style, setStyle] = useState('日本のイラスト風');
   const [language, setLanguage] = useState<SupportedLanguage>('ja');
   const [withText, setWithText] = useState(false);
+  const [dialogueOption, setDialogueOption] = useState<'auto' | 'none'>('auto');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,8 @@ export default function Home() {
           panels, 
           style,
           language,
-          withText
+          withText,
+          dialogueOption
         }),
       });
 
@@ -48,6 +50,7 @@ export default function Home() {
       }
 
       const data = await response.json();
+      console.log('APIレスポンス:', data);
       setResult(data);
     } catch (err: any) {
       console.error('エラー発生:', err);
@@ -148,21 +151,27 @@ export default function Home() {
                   <input
                     type="radio"
                     className="form-radio"
-                    name="withText"
-                    checked={withText}
-                    onChange={() => setWithText(true)}
+                    name="dialogueOption"
+                    checked={dialogueOption === 'auto'}
+                    onChange={() => {
+                      setDialogueOption('auto');
+                      setWithText(true);
+                    }}
                   />
-                  <span className="ml-2">画像にセリフを含める</span>
+                  <span className="ml-2">自動セリフ生成</span>
                 </label>
                 <label className="inline-flex items-center">
                   <input
                     type="radio"
                     className="form-radio"
-                    name="withText"
-                    checked={!withText}
-                    onChange={() => setWithText(false)}
+                    name="dialogueOption"
+                    checked={dialogueOption === 'none'}
+                    onChange={() => {
+                      setDialogueOption('none');
+                      setWithText(false);
+                    }}
                   />
-                  <span className="ml-2">吹き出しのみ（UIで表示）</span>
+                  <span className="ml-2">セリフなし（後で追加）</span>
                 </label>
               </div>
             </div>
@@ -195,8 +204,8 @@ export default function Home() {
       {result && (
         <section className="card mb-12">
           <ComicGenerator 
-            content={result.content} 
-            panelDialogues={result.panelDialogues}
+            content={result} 
+            panelDialogues={result.dialogues}
           />
         </section>
       )}

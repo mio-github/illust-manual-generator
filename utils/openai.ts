@@ -14,6 +14,7 @@ export type { SupportedLanguage };
 export const languageNames = {
   ja: '日本語',
   en: '英語',
+  vi: 'ベトナム語',
   zh: '中国語',
   ko: '韓国語'
 };
@@ -22,6 +23,7 @@ export const languageNames = {
 const languagePromptPrefix = {
   ja: 'あなたは日本語のイラスト制作のプロです。以下のタスクを日本語で行ってください。',
   en: 'You are a professional illustration creator. Please complete the following task in English only.',
+  vi: 'Bạn là một chuyên gia tạo hình minh họa. Vui lòng hoàn thành nhiệm vụ sau đây bằng tiếng Việt.',
   zh: '您是专业的插图创作者。请用中文完成以下任务。',
   ko: '당신은 전문 일러스트 제작자입니다. 다음 작업을 한국어로만 수행해 주세요.'
 };
@@ -30,6 +32,7 @@ const languagePromptPrefix = {
 const languageEnforcement = {
   ja: '必ず日本語だけで返答してください。出力は画像も含めて日本語以外の言語を含めないでください。',
   en: 'Please respond in English only. Do not include any other languages in your output.',
+  vi: 'Vui lòng chỉ trả lời bằng tiếng Việt. Không bao gồm bất kỳ ngôn ngữ nào khác trong đầu ra của bạn.',
   zh: '请务必只用中文回答。输出中不要包含中文以外的语言。',
   ko: '반드시 한국어로만 답변해 주세요. 출력에 한국어 이외의 언어를 포함하지 마세요.'
 };

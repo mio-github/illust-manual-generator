@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+
+// アプリバージョン
+const APP_VERSION = 'v1.2.1';
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,12 +27,19 @@ export default function Navigation() {
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <Link href="/" className="flex items-center">
+                <Image 
+                  src="/assets/mio_logo.png" 
+                  alt="Mio System Co.,Ltd." 
+                  width={40} 
+                  height={40} 
+                  className="mr-2"
+                />
                 <span className="text-pink-500 font-bold text-xl">ナビゲーションイラスト</span>
               </Link>
             </div>
             
             {/* デスクトップナビゲーション */}
-            <div className="hidden md:flex space-x-6">
+            <div className="hidden md:flex space-x-6 items-center">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
@@ -48,6 +59,7 @@ export default function Navigation() {
               >
                 サポートする
               </Link>
+              <span className="text-xs text-gray-500 ml-2">{APP_VERSION}</span>
             </div>
             
             {/* モバイルメニューボタン */}

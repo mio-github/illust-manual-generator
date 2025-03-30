@@ -1,4 +1,8 @@
 import Link from 'next/link';
+import Image from 'next/image';
+
+// アプリバージョン（ナビゲーションと同期）
+const APP_VERSION = 'v1.2.1';
 
 export default function Footer() {
   return (
@@ -79,7 +83,21 @@ export default function Footer() {
         </div>
         
         <div className="mt-8 border-t border-gray-200 pt-6 text-sm text-gray-600">
-          <p>© 2025 Mio System Co.,Ltd. All rights reserved.</p>
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="mb-4 md:mb-0">
+              <div className="flex items-center">
+                <Image 
+                  src="/assets/mio_logo.png" 
+                  alt="Mio System Co.,Ltd." 
+                  width={30} 
+                  height={30} 
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-500">© 2025 Mio System Co.,Ltd. All rights reserved.</span>
+                <span className="text-xs text-gray-400 ml-2">{APP_VERSION}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

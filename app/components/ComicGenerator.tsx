@@ -51,7 +51,15 @@ interface ComicProject {
 }
 
 interface ComicGeneratorProps {
-  content: Panel[];
+  content: {
+    imageUrl: string;
+    dialogues: string[][];
+    panelCount: number;
+    language: string;
+    generatedAt: string;
+    elapsedTime: number;
+    caption?: string;
+  };
   panelDialogues?: string[][];
 }
 
@@ -429,21 +437,24 @@ function BubbleDropArea({ children, onDragEnd }: {
 }
 
 export default function ComicGenerator({ content, panelDialogues }: ComicGeneratorProps) {
-  const firstPanel = content[0];
-  const isMultiPanelComic = firstPanel?.isMultiPanel;
-  const panelCount = firstPanel?.panelCount || content.length;
-  const withText = firstPanel?.withText ?? true;
-  const language = firstPanel?.language || 'ja';
+  // デバッグ用にcontentの内容をログ出力
+  console.log('受け取ったcontent:', content);
+
+  // 必要に応じてデフォルト値を設定
+  const fallbackImageUrl = '/placeholder-image.jpg'; // プレースホルダー画像のパス
   
-  // マルチパネルの場合は、panelDialoguesを使用
-  // 個別パネルの場合は、各パネルからdialogudesを抽出
-  const dialogues = isMultiPanelComic 
-    ? (panelDialogues || [])
-    : content.map(panel => panel.dialogues);
+  // APIレスポンスの新しい形式に対応
+  const isMultiPanelComic = true; // 常にマルチパネルとして扱う
+  const panelCount = content?.panelCount || 4;
+  const withText = true;
+  const language = content?.language || 'ja';
+  
+  // マルチパネルの場合は、dialoguesを使用
+  const dialogues = content?.dialogues || panelDialogues || [];
   
   const [selectedPanel, setSelectedPanel] = useState<number | null>(null);
   const [panelTexts, setPanelTexts] = useState<string[]>(
-    dialogues.map(d => d.join('\n'))
+    dialogues.map((d: string[]) => d.join('\n'))
   );
   const [showCaptions, setShowCaptions] = useState(true);
   
@@ -797,7 +808,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     const projectData: ComicProject = {
       id: `proj-${Date.now()}`,
       name: projectName,
-      imageUrl: firstPanel.imageUrl,
+      imageUrl: content?.imageUrl || fallbackImageUrl,
       bubblePositions,
       panelDialogues: dialogues,
       createdAt: new Date().toISOString(),
@@ -958,131 +969,51 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       >
         {isMultiPanelComic ? (
           // マルチパネルイラストの表示（1枚の画像にすべてのコマが含まれる）
-          <div className="relative">
-            <div className="relative w-full h-auto aspect-square max-h-[700px]">
+          <div className="relative overflow-hidden" style={{ width: '100%', aspectRatio: '16/9' }}>
+            <div className="absolute inset-0" ref={comicRef}>
               <Image 
                 ref={imageRef}
-                src={firstPanel.imageUrl} 
+                src={content?.imageUrl || fallbackImageUrl} 
                 alt="ナビゲーションイラスト"
                 fill
                 style={{ objectFit: 'contain' }}
                 priority
-                sizes="(max-width: 768px) 100vw, 1024px"
+                className="comic-image"
               />
+              
+              {/* 吹き出し編集エリア */}
+              <BubbleDropArea onDragEnd={handleDragEnd}>
+                {bubblePositions.map((bubble, idx) => (
+                  <DraggableBubble 
+                    key={idx}
+                    bubble={bubble}
+                    index={idx}
+                    onUpdate={handleBubbleDrag}
+                    onTextChange={handleBubbleTextChange}
+                    onResize={handleBubbleResize}
+                    onDelete={handleBubbleDelete}
+                    onStyleChange={handleBubbleStyleChange}
+                    onFontChange={handleBubbleFontChange}
+                    onOpacityChange={handleBubbleOpacityChange}
+                  />
+                ))}
+              </BubbleDropArea>
             </div>
             
-            <DndContext onDragEnd={({ active, delta }) => {
-              if (active && delta) {
-                const id = active.id.toString();
-                if (id.startsWith('bubble-')) {
-                  const index = parseInt(id.replace('bubble-', ''));
-                  const bubble = bubblePositions[index];
-                  handleBubbleDrag(index, {
-                    x: bubble.x + delta.x,
-                    y: bubble.y + delta.y
-                  });
-                }
-              }
-            }}>
-              <BubbleDropArea onDragEnd={handleDragEnd}>
-                {/* 吹き出し編集モード */}
-                {editMode && (
-                  <>
-                    {bubblePositions.map((bubble, index) => (
-                      <DraggableBubble
-                        key={index}
-                        bubble={bubble}
-                        index={index}
-                        onUpdate={handleBubbleDrag}
-                        onTextChange={handleBubbleTextChange}
-                        onResize={handleBubbleResize}
-                        onDelete={handleBubbleDelete}
-                        onStyleChange={handleBubbleStyleChange}
-                        onFontChange={handleBubbleFontChange}
-                        onOpacityChange={handleBubbleOpacityChange}
-                      />
-                    ))}
-                  </>
-                )}
-              </BubbleDropArea>
-            </DndContext>
-            
-            {/* セリフ表示 - 編集モードでない場合 */}
-            {!editMode && (
-              <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-                {bubblePositions.map((bubble, index) => (
-                  <div
-                    key={index}
-                    className="absolute bg-white bg-opacity-80 rounded p-2"
-                    style={{
-                      left: `${bubble.x}px`,
-                      top: `${bubble.y}px`,
-                      width: `${bubble.width}px`,
-                      minHeight: `${bubble.height}px`,
-                      writingMode: bubble.writing === 'vertical' ? 'vertical-rl' : 'horizontal-tb',
-                      fontFamily: bubble.fontFamily || 'sans-serif',
-                      fontSize: `${bubble.fontSize}px`,
-                      color: bubble.color
-                    }}
-                  >
-                    {bubble.text}
-                  </div>
-                ))}
-              </div>
-            )}
-            
             {/* キャプション表示 */}
-            {showCaptions && firstPanel.caption && (
+            {showCaptions && content?.caption && (
               <div className="absolute bottom-0 left-0 w-full bg-gray-800 bg-opacity-70 p-2 text-white text-sm ui-control">
-                {firstPanel.caption}
+                {content?.caption}
               </div>
             )}
           </div>
         ) : (
-          // 個別パネルの表示（従来の表示方法）
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {content.map((panel, index) => (
-              <div 
-                key={index}
-                className={`relative border-2 rounded-lg overflow-hidden cursor-pointer ${
-                  selectedPanel === index ? 'border-blue-500' : 'border-gray-200'
-                }`}
-                onClick={() => handlePanelClick(index)}
-              >
-                <div className="relative w-full h-64">
-                  <Image 
-                    src={panel.imageUrl} 
-                    alt={`イラストコマ ${index + 1}`}
-                    fill
-                    style={{ objectFit: 'contain' }}
-                    priority
-                  />
-                </div>
-                
-                {/* セリフ表示エリア */}
-                {panelTexts[index] && (
-                  <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none">
-                    <div className="bg-white bg-opacity-80 p-2 rounded text-center max-w-[80%] shadow-md">
-                      {panelTexts[index].split('\n').map((line, i) => (
-                        <div key={i} className={i > 0 ? 'mt-2' : ''}>{line}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* コマ番号表示 */}
-                <div className="absolute top-2 left-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold ui-control">
-                  {index + 1}
-                </div>
-                
-                {/* キャプション表示 */}
-                {showCaptions && panel.caption && (
-                  <div className="absolute bottom-0 left-0 w-full bg-gray-800 bg-opacity-70 p-2 text-white text-sm ui-control">
-                    {panel.caption}
-                  </div>
-                )}
-              </div>
-            ))}
+          // 個別パネルの表示（複数の画像がある場合）
+          <div className="grid grid-cols-2 gap-4">
+            {/* 個別パネルモードは新しいAPIでは非対応のため削除または修正 */}
+            <div className="text-center p-4">
+              <p className="text-gray-600">個別パネルモードは現在対応していません。</p>
+            </div>
           </div>
         )}
       </div>

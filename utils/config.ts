@@ -75,7 +75,7 @@ export const appConfig = {
   maxPanelCount: 6,     // 最大コマ数
   minPanelCount: 2,     // 最小コマ数
   defaultStyle: 'シンプルで見やすいイラスト風', // デフォルトの画像スタイル
-  allowedLanguages: ['ja', 'en', 'zh', 'ko'] as const, // 対応言語
+  allowedLanguages: ['ja', 'en', 'vi', 'zh', 'ko'] as const, // 対応言語
   
   // デフォルトのイラストプロンプト詳細設定
   defaultStylePrompt: `モノトーンに近い落ち着いた色合い、クリーンでシンプルな線画、わかりやすい表情の人物。複雑な背景や余計な装飾は避け、説明内容に集中したミニマルなイラスト。全体的に視認性を重視し、情報が伝わりやすい構図。`,

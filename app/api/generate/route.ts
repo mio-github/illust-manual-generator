@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
       prompt, 
       dialogueOption,
       style = APP_CONFIG.STYLE.DEFAULT,
-      language = 'ja'  // 言語設定（デフォルトは日本語）
+      language = 'ja',  // 言語設定（デフォルトは日本語）
+      panels = APP_CONFIG.PANEL.DEFAULT // パネル数（デフォルト値を設定）
     } = body;
     
     // 言語の検証
@@ -81,11 +82,37 @@ export async function POST(req: NextRequest) {
     
     if (dialogueOption === 'auto') {
       // 自動セリフ生成
-      const generatedDialogues = await generateDialogues(prompt, validLang);
-      dialogues = generatedDialogues;
+      try {
+        const generatedDialogues = await generateDialogues(prompt, validLang);
+        dialogues = generatedDialogues;
+        console.log(`[${requestId}] セリフ生成成功:`, dialogues);
+      } catch (error) {
+        console.error(`[${requestId}] セリフ生成エラー:`, error);
+        // エラー時は空のセリフでフォールバック
+        dialogues = Array.from({ length: APP_CONFIG.PANEL.DEFAULT }, () => ['', '']);
+      }
     } else if (dialogueOption === 'none') {
       // セリフなし（空の配列）
       dialogues = Array.from({ length: APP_CONFIG.PANEL.DEFAULT }, () => ['', '']);
+    } else {
+      // デフォルトは自動生成を試みる
+      try {
+        const generatedDialogues = await generateDialogues(prompt, validLang);
+        dialogues = generatedDialogues;
+      } catch (error) {
+        console.error(`[${requestId}] セリフ生成エラー (デフォルトモード):`, error);
+        dialogues = Array.from({ length: APP_CONFIG.PANEL.DEFAULT }, () => ['', '']);
+      }
+    }
+    
+    // 指定されたパネル数に合わせる
+    if (dialogues.length < panels) {
+      // 足りない場合は空のセリフを追加
+      const additionalPanels = Array.from({ length: panels - dialogues.length }, () => ['', '']);
+      dialogues = [...dialogues, ...additionalPanels];
+    } else if (dialogues.length > panels) {
+      // 多すぎる場合は切り詰める
+      dialogues = dialogues.slice(0, panels);
     }
     
     // イラスト生成

@@ -4,7 +4,7 @@
  */
 
 // 対応言語
-export type SupportedLanguage = 'ja' | 'en' | 'zh' | 'ko';
+export type SupportedLanguage = 'ja' | 'en' | 'vi' | 'zh' | 'ko';
 
 // API設定
 export const API_CONFIG = {
@@ -56,7 +56,7 @@ export const APP_CONFIG = {
     
     // スタイルごとの詳細プロンプト
     PROMPTS: {
-      DEFAULT: 'モノトーンに近い落ち着いた色合い、クリーンでシンプルな線画、わかりやすい表情の人物。複雑な背景や余計な装飾は避け、説明内容に集中したミニマルなイラスト。全体的に視認性を重視し、情報が伝わりやすい構図。',
+      DEFAULT: '少ない色数で落ち着いた色合い、クリーンでシンプルな線画、わかりやすい表情の人物。複雑な背景や余計な装飾は避け、説明内容に集中したミニマルなイラスト。全体的に視認性を重視し、情報が伝わりやすい構図。',
       MANGA: '日本の漫画スタイルで、はっきりとした線画、表情豊かなキャラクター、効果的な背景。感情が伝わりやすい誇張表現を使用。白黒のコマ割りが特徴的なデザイン。',
       SIMPLE: '最小限の線で描かれたシンプルなイラスト。不要な詳細は省略し、主要な情報のみを伝える。クリアな配色と単純な形状で視認性を最大化。',
       CUTE: '丸みのあるデザイン、明るいパステルカラー、大きな目と頭のキャラクター。愛らしさを重視した表現で、親しみやすく楽しい印象を与える。',
@@ -106,6 +106,7 @@ export const LANGUAGE_CONFIG = {
   PROMPT_PREFIX: {
     ja: 'あなたは日本語のイラスト制作のプロです。以下のタスクを日本語で行ってください。',
     en: 'You are a professional illustration creator. Please complete the following task in English only.',
+    vi: 'Bạn là một chuyên gia tạo hình minh họa. Vui lòng hoàn thành nhiệm vụ sau đây bằng tiếng Việt.',
     zh: '您是专业的插图创作者。请用中文完成以下任务。',
     ko: '당신은 전문 일러스트 제작자입니다. 다음 작업을 한국어로만 수행해 주세요.'
   },
@@ -114,6 +115,7 @@ export const LANGUAGE_CONFIG = {
   ENFORCEMENT: {
     ja: '必ず日本語だけで返答してください。出力は画像も含めて日本語以外の言語を含めないでください。',
     en: 'Please respond in English only. Do not include any other languages in your output.',
+    vi: 'Vui lòng chỉ trả lời bằng tiếng Việt. Không bao gồm bất kỳ ngôn ngữ nào khác trong đầu ra của bạn.',
     zh: '请务必只用中文回答。输出中不要包含中文以外的语言。',
     ko: '반드시 한국어로만 답변해 주세요. 출력에 한국어 이외의 언어를 포함하지 마세요.'
   },
@@ -122,6 +124,7 @@ export const LANGUAGE_CONFIG = {
   DISPLAY_NAMES: {
     ja: '日本語',
     en: '英語',
+    vi: 'ベトナム語',
     zh: '中国語',
     ko: '韓国語'
   }
