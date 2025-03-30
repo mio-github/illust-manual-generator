@@ -5,9 +5,10 @@ import { useState, useEffect } from 'react';
 interface TextEditorProps {
   value: string;
   onChange: (text: string) => void;
+  className?: string;
 }
 
-export default function TextEditor({ value, onChange }: TextEditorProps) {
+export default function TextEditor({ value, onChange, className = '' }: TextEditorProps) {
   const [text, setText] = useState(value);
   
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function TextEditor({ value, onChange }: TextEditorProps) {
   return (
     <div>
       <textarea
-        className="input-field mb-4"
+        className={`input-field mb-4 ${className}`}
         rows={3}
         value={text}
         onChange={handleChange}

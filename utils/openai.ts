@@ -313,3 +313,67 @@ export async function composePanelsIntoComic(
   // 実際の実装では、ここで画像を取得して合成する処理を追加する
   return imageUrls[0] || `https://placehold.co/800x1000?text=${encodeURIComponent('コマ合成機能開発中')}`;
 }
+
+/**
+ * 1枚の画像内に複数コマのレイアウトを持つ漫画を生成する関数
+ * @param prompt ユーザーのプロンプト
+ * @param panelCount コマ数
+ * @param dialogues セリフの配列（セリフなしで吹き出しのみ生成するため参照のみ）
+ * @param options 画像生成オプション
+ * @returns 生成された画像のURL
+ */
+export async function generateMultiPanelComic(
+  prompt: string,
+  panelCount: number,
+  dialogues: string[][],
+  options: {
+    model?: string;
+    quality?: string;
+    size?: string;
+    style?: string;
+  } = {}
+) {
+  try {
+    console.log('[マルチパネル漫画生成開始]', { 
+      prompt: prompt.substring(0, 50) + '...',
+      panelCount,
+      dialoguesCount: dialogues.length
+    });
+    
+    // 各コマの内容をまとめた説明を作成
+    const panelDescriptions = dialogues.map((panelDialogues, index) => {
+      const panelNum = index + 1;
+      const dialogueContext = panelDialogues.join('、');
+      return `コマ${panelNum}: 「${dialogueContext}」という会話`;
+    }).join('\n');
+    
+    // 特別なプロンプトを作成
+    const enhancedPrompt = `
+      ${prompt} について、${panelCount}コマの漫画を作成してください。
+      
+      【重要な指示】
+      - 1枚の画像の中に${panelCount}コマの漫画レイアウトを作成してください
+      - 各コマは明確に区切られ、順番がわかるようにしてください
+      - 各コマには吹き出しを含めますが、吹き出しの中は空白にしてください（セリフは入れないでください）
+      - 日本語漫画のスタイルで、読みやすい構図にしてください
+      - 各コマの内容は以下の通りです：
+      ${panelDescriptions}
+      
+      スタイル: ${options.style || 'シンプルで見やすい漫画'}
+    `.trim();
+    
+    console.log('[マルチパネル漫画] 生成プロンプト:', enhancedPrompt);
+    
+    // 画像サイズを調整（複数コマを含むためより大きく）
+    const size = '1024x1024'; // 正方形で大きめのサイズを指定
+    
+    return await generateImage(enhancedPrompt, {
+      ...options,
+      size
+    });
+  } catch (error) {
+    console.error('[マルチパネル漫画生成エラー]', error);
+    // エラーの場合はプレースホルダー画像を返す
+    return `https://placehold.co/1024x1024?text=${encodeURIComponent('漫画生成エラー')}`;
+  }
+}
