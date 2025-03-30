@@ -7,13 +7,16 @@
 export const checkApiKey = () => {
   // クライアント側では環境変数にアクセスできないため、サーバー側でのみ実行
   if (typeof window !== 'undefined') {
+    console.log('クライアント側からのAPIキー参照: 安全のため空値を返します');
     return undefined; // クライアント側では空値を返す
   }
   
+  // Vercel環境変数またはローカル環境変数からAPIキーを取得
   const apiKey = process.env.OPENAI_API_KEY;
   
   if (!apiKey) {
     console.error('警告: OPENAI_API_KEYが設定されていません。');
+    console.error('Vercel環境変数または.env.localファイルにOPENAI_API_KEYを設定してください。');
     return undefined;
   }
   
