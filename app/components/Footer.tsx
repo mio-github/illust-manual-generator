@@ -2,13 +2,13 @@ import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-800 text-white">
-      <div className="container mx-auto px-4 py-8">
+    <footer className="py-12 text-gray-700">
+      <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-lg font-semibold mb-4">イラスト説明漫画</h3>
-            <p className="text-gray-300 text-sm">
-              GPT-4oの力で、説明文からイラスト漫画を簡単に生成できるサービスです。
+            <h3 className="text-lg font-semibold mb-4">ナビゲーションイラスト</h3>
+            <p className="text-sm mb-4">
+              GPT-4oの力で、説明文からナビゲーションイラストを簡単に生成できるサービスです。
             </p>
           </div>
           
@@ -78,8 +78,8 @@ export default function Footer() {
           </div>
         </div>
         
-        <div className="mt-8 border-t border-gray-700 pt-6 text-sm text-gray-300">
-          <p>© 2024 イラスト説明漫画ジェネレーター. All rights reserved.</p>
+        <div className="mt-8 border-t border-gray-200 pt-6 text-sm text-gray-600">
+          <p>© 2024 ナビゲーションイラスト生成ツール. All rights reserved.</p>
         </div>
       </div>
     </footer>

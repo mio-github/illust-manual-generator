@@ -73,7 +73,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   // 編集モードの初期化
   useEffect(() => {
     if (isMultiPanelComic && !withText) {
-      // セリフなしのマルチパネル漫画の場合、初期吹き出し位置をデフォルト設定
+      // セリフなしのマルチパネルイラストの場合、初期吹き出し位置をデフォルト設定
       const initialBubbles: BubblePosition[] = [];
       dialogues.flat().forEach((text, i) => {
         initialBubbles.push({
@@ -269,7 +269,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
         className="relative border-2 rounded-lg overflow-hidden mb-6 bg-white"
       >
         {isMultiPanelComic ? (
-          // マルチパネル漫画の表示（1枚の画像にすべてのコマが含まれる）
+          // マルチパネルイラストの表示（1枚の画像にすべてのコマが含まれる）
           <div className="relative">
             <div className="relative w-full h-96 md:h-[600px]">
               <Image 

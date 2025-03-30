@@ -12,10 +12,10 @@ export const languageNames = {
 
 // 言語ごとのシステムプロンプト接頭辞
 const languagePromptPrefix = {
-  ja: 'あなたは日本語の漫画制作のプロです。以下のタスクを日本語で行ってください。',
-  en: 'You are a professional comic creator. Please complete the following task in English only.',
-  zh: '您是专业的漫画创作者。请用中文完成以下任务。',
-  ko: '당신은 전문 만화 제작자입니다. 다음 작업을 한국어로만 수행해 주세요.'
+  ja: 'あなたは日本語のイラスト制作のプロです。以下のタスクを日本語で行ってください。',
+  en: 'You are a professional illustration creator. Please complete the following task in English only.',
+  zh: '您是专业的插图创作者。请用中文完成以下任务。',
+  ko: '당신은 전문 일러스트 제작자입니다. 다음 작업을 한국어로만 수행해 주세요.'
 };
 
 // 言語ごとの指示強化文
@@ -212,7 +212,7 @@ export async function generateDialogues(
                          language === 'ko' ? '韓国語' : '日本語';
     
     const systemPrompt = `
-      以下の説明に基づいて、${panelCount}コマの漫画のセリフを${languageText}で生成してください。
+      以下の説明に基づいて、${panelCount}コマのナビゲーションイラストのセリフを${languageText}で生成してください。
       各コマには1〜2人の登場人物のセリフを含めてください。
       セリフは${languageText}で、各コマの内容に合わせて連続性を持たせてください。
       最初のコマは導入、最後のコマは結論になるようにしてください。
@@ -445,17 +445,17 @@ export async function generateMultiPanelComic(
     
     // 特別なプロンプトを作成
     const enhancedPrompt = `
-      ${prompt} について、${panelCount}コマの漫画を作成してください。
+      ${prompt} について、${panelCount}コマのナビゲーションイラストレイアウトを作成してください。
       
       【重要な指示】
-      - 1枚の画像の中に${panelCount}コマの漫画レイアウトを作成してください
+      - 1枚の画像の中に${panelCount}コマのナビゲーションイラストレイアウトを作成してください
       - 各コマは明確に区切られ、順番がわかるようにしてください
       - 各コマには吹き出しを含めますが、吹き出しの中は空白にしてください（セリフは入れないでください）
       - 日本語漫画のスタイルで、読みやすい構図にしてください
       - 各コマの内容は以下の通りです：
       ${panelDescriptions}
       
-      スタイル: ${options.style || 'シンプルで見やすい漫画'}
+      スタイル: ${options.style || 'シンプルで見やすいナビゲーションイラスト'}
     `.trim();
     
     console.log('[マルチパネル漫画] 生成プロンプト:', enhancedPrompt);
@@ -475,13 +475,7 @@ export async function generateMultiPanelComic(
 }
 
 /**
- * 1枚の画像内に複数コマのレイアウトを持つ漫画を生成する関数（セリフ付き）
- * @param prompt ユーザーのプロンプト
- * @param panelCount コマ数
- * @param dialogues セリフの配列
- * @param language 言語設定
- * @param options 画像生成オプション
- * @returns 生成された画像のURL
+ * 1枚の画像内に複数コマのレイアウトを持つナビゲーションイラストを生成する関数（セリフ付き）
  */
 export async function generateMultiPanelComicWithText(
   prompt: string,
@@ -496,7 +490,7 @@ export async function generateMultiPanelComicWithText(
   } = {}
 ) {
   try {
-    console.log('[セリフ付き漫画生成開始]', { 
+    console.log('[セリフ付きイラスト生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
       panelCount,
       dialoguesCount: dialogues.length,
@@ -515,10 +509,10 @@ export async function generateMultiPanelComicWithText(
     
     // 言語に応じたスタイル指定
     const languageStyleText = 
-      language === 'ja' ? '日本語漫画' : 
-      language === 'en' ? '英語のコミック' :
-      language === 'zh' ? '中国語の漫画' :
-      language === 'ko' ? '韓国語のウェブトゥーン' : '漫画';
+      language === 'ja' ? '日本語イラスト' : 
+      language === 'en' ? '英語のイラスト' :
+      language === 'zh' ? '中国語のイラスト' :
+      language === 'ko' ? '韓国語のイラスト' : 'イラスト';
     
     // セリフの言語を指定
     const languageName = 
@@ -534,7 +528,7 @@ export async function generateMultiPanelComicWithText(
       ${prompt} について、${panelCount}コマの${languageStyleText}を作成してください。
       
       【重要な指示 - 必ず守ってください】
-      - 1枚の画像の中に${panelCount}コマの漫画レイアウトを作成してください
+      - 1枚の画像の中に${panelCount}コマのナビゲーションイラストレイアウトを作成してください
       - 各コマは明確に区切られ、順番がわかるようにしてください
       - 各コマには吹き出しを含め、その中に対応するセリフを${languageName}で明確に書き込んでください
       - 吹き出しの中のテキストは読みやすく、明確に表示してください
@@ -544,12 +538,12 @@ export async function generateMultiPanelComicWithText(
       各コマの内容とセリフは以下の通りです：
       ${panelDescriptions}
       
-      スタイル: ${options.style || 'シンプルで見やすい漫画'}
+      スタイル: ${options.style || 'シンプルで見やすいナビゲーションイラスト'}
       
       ${languageEnforcement[language]}
     `.trim();
     
-    console.log('[セリフ付き漫画] 生成プロンプト:', enhancedPrompt);
+    console.log('[セリフ付きイラスト] 生成プロンプト:', enhancedPrompt);
     
     // 画像サイズを調整（複数コマを含むためより大きく）
     const size = '1024x1024'; // 正方形で大きめのサイズを指定
@@ -559,9 +553,9 @@ export async function generateMultiPanelComicWithText(
       size
     });
   } catch (error) {
-    console.error('[セリフ付き漫画生成エラー]', error);
+    console.error('[セリフ付きイラスト生成エラー]', error);
     // エラーの場合はプレースホルダー画像を返す
-    return `https://placehold.co/1024x1024?text=${encodeURIComponent('漫画生成エラー')}`;
+    return `https://placehold.co/1024x1024?text=${encodeURIComponent('イラスト生成エラー')}`;
   }
 }
 

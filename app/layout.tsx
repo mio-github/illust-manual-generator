@@ -7,8 +7,8 @@ import Footer from './components/Footer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'イラスト説明漫画ジェネレーター',
-  description: 'GPT-4oを使用した説明漫画の自動生成ツール',
+  title: 'ナビゲーションイラスト生成ツール',
+  description: 'GPT-4oを使用したナビゲーションイラストの自動生成ツール',
 };
 
 export default function RootLayout({

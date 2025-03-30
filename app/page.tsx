@@ -44,14 +44,14 @@ export default function Home() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || '漫画の生成中にエラーが発生しました');
+        throw new Error(error.error || 'イラストの生成中にエラーが発生しました');
       }
 
       const data = await response.json();
       setResult(data);
     } catch (err: any) {
       console.error('エラー発生:', err);
-      setError(err.message || '漫画の生成中にエラーが発生しました');
+      setError(err.message || 'イラストの生成中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export default function Home() {
                 <option value="リアル">リアル</option>
                 <option value="アニメ">アニメ</option>
                 <option value="水彩画">水彩画</option>
-                <option value="漫画">漫画</option>
+                <option value="イラスト">イラスト</option>
                 <option value="ピクセルアート">ピクセルアート</option>
               </select>
             </div>

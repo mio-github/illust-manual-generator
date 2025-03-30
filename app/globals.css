@@ -3,19 +3,76 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 245, 247, 250;
-  --background-end-rgb: 255, 255, 255;
+  --primary-color: #FFAAC9; /* パステルピンク */
+  --secondary-color: #B6E5D8; /* パステルミント */
+  --accent-color: #FBE7C6; /* パステルイエロー */
+  --background-color: #FDEFF2; /* 薄いピンク */
+  --text-color: #5E5E5E; /* ソフトグレー */
+  --border-color: #D6E5FA; /* パステルブルー */
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.btn-primary {
+  @apply px-6 py-2 rounded-full font-medium text-white shadow-md transition-all;
+  background-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary:disabled {
+  @apply opacity-70 cursor-not-allowed;
+  background-color: #FFCCE0;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 rounded-full font-medium shadow-sm transition-all;
+  background-color: var(--secondary-color);
+  color: #4A7B6F;
+}
+
+.btn-secondary:hover {
+  filter: brightness(1.05);
+}
+
+.input-field {
+  @apply block w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2;
+  border-color: var(--border-color);
+  background-color: white;
+}
+
+.input-field:focus {
+  @apply border-transparent;
+  box-shadow: 0 0 0 2px var(--secondary-color);
+}
+
+.card {
+  @apply rounded-xl p-6 shadow-lg border;
+  background-color: white;
+  border-color: var(--border-color);
+}
+
+/* Navbar styling */
+.navbar {
+  @apply shadow-sm py-3;
+  background-color: white;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Footer styling */
+footer {
+  background-color: #FEF9FF;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Form checkbox and radio button styles */
+.form-checkbox, .form-radio {
+  @apply rounded border-gray-300 text-pink-500 shadow-sm focus:border-pink-300 focus:ring focus:ring-offset-0 focus:ring-pink-200 focus:ring-opacity-50;
 }
 
 @layer components {
