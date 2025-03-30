@@ -477,6 +477,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   const [editMode, setEditMode] = useState(true);
   const comicRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const contentContainerRef = useRef<HTMLDivElement>(null);
   const [bubblePositions, setBubblePositions] = useState<BubblePosition[]>([]);
   
   // フォントファミリーオプション
@@ -825,6 +826,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       // 画像の縦横比を取得
       const originalWidth = imageRef.current?.naturalWidth || 1024;
       const originalHeight = imageRef.current?.naturalHeight || 1024;
+      console.log('元画像サイズ:', { originalWidth, originalHeight });
       
       // 画像の実際のサイズを取得
       const imgRect = imageRef.current?.getBoundingClientRect();
@@ -850,43 +852,70 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
         }
       });
       
-      // html2canvasでキャプチャ
-      const canvas = await html2canvas(comicRef.current, {
+      // 一時的なクローン要素を作成して、自由にスタイルを変更できるようにする
+      const cloneElement = comicRef.current.cloneNode(true) as HTMLElement;
+      document.body.appendChild(cloneElement);
+      
+      // クローン要素のスタイルを設定して、キャプチャに最適化
+      cloneElement.style.position = 'absolute';
+      cloneElement.style.top = '-9999px';
+      cloneElement.style.left = '-9999px';
+      cloneElement.style.width = originalWidth + 'px';
+      cloneElement.style.height = originalHeight + 'px';
+      cloneElement.style.transform = 'none';
+      cloneElement.style.transformOrigin = 'top left';
+      
+      // クローン内の画像要素のスタイルを修正
+      const cloneImg = cloneElement.querySelector('img');
+      if (cloneImg) {
+        cloneImg.style.width = '100%';
+        cloneImg.style.height = '100%';
+        cloneImg.style.objectFit = 'contain';
+        cloneImg.style.position = 'relative';
+        cloneImg.style.transform = 'none';
+      }
+      
+      // クローン内の吹き出し要素のコントロールを非表示
+      const cloneBubbles = cloneElement.querySelectorAll('.bubble-editor');
+      cloneBubbles.forEach(bubble => {
+        const controls = bubble.querySelectorAll('.bubble-control');
+        controls.forEach(control => {
+          (control as HTMLElement).style.display = 'none';
+        });
+        (bubble as HTMLElement).style.borderColor = 'transparent';
+      });
+      
+      // クローン内のアスペクト比固定のdivを修正
+      const aspectRatioDiv = cloneElement.querySelector('div[style*="aspectRatio"]');
+      if (aspectRatioDiv) {
+        (aspectRatioDiv as HTMLElement).style.width = '100%';
+        (aspectRatioDiv as HTMLElement).style.height = '100%';
+        (aspectRatioDiv as HTMLElement).style.position = 'relative';
+        (aspectRatioDiv as HTMLElement).style.aspectRatio = 'auto';
+      }
+      
+      // クローン内の絶対配置されたdivを修正
+      const absoluteDiv = cloneElement.querySelector('div.absolute.inset-0');
+      if (absoluteDiv) {
+        (absoluteDiv as HTMLElement).style.position = 'relative';
+        (absoluteDiv as HTMLElement).style.inset = 'auto';
+        (absoluteDiv as HTMLElement).style.width = '100%';
+        (absoluteDiv as HTMLElement).style.height = '100%';
+      }
+      
+      // 修正されたクローン要素をキャプチャ
+      const canvas = await html2canvas(cloneElement, {
         backgroundColor: null,
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        // 元の画像の縦横比を保持
-        onclone: (document, element) => {
-          // キャプチャ前に要素のスタイルを調整
-          const clonedElement = element as HTMLElement;
-          
-          // 要素内の画像参照を取得
-          const imgElement = clonedElement.querySelector('img');
-          if (imgElement) {
-            // 画像が完全に表示されるように設定
-            imgElement.style.width = '100%';
-            imgElement.style.height = 'auto';
-            imgElement.style.objectFit = 'contain';
-            imgElement.style.display = 'block';
-          }
-          
-          // クローン先の吹き出しにも設定を適用
-          const clonedBubbles = clonedElement.querySelectorAll('.bubble-editor');
-          clonedBubbles.forEach((bubble, index) => {
-            const bubbleStyle = bubblePositions[index];
-            if (bubbleStyle) {
-              // border-colorをnoneに設定して吹き出しの境界線を非表示に
-              (bubble as HTMLElement).style.borderColor = 'transparent';
-              // コントロールを非表示に
-              const controls = bubble.querySelectorAll('.bubble-control');
-              controls.forEach(control => {
-                (control as HTMLElement).style.display = 'none';
-              });
-            }
-          });
-        }
+        logging: true,
+        imageTimeout: 0,
+        removeContainer: true,
       });
+      
+      // クローン要素をDOM削除
+      document.body.removeChild(cloneElement);
       
       // 画像ファイル名を設定
       const fileName = projectName || `illustrated-guide-${new Date().toISOString().slice(0, 10)}`;
@@ -1085,7 +1114,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
         {isMultiPanelComic ? (
           // マルチパネルイラストの表示（1枚の画像にすべてのコマが含まれる）
           <div className="relative overflow-hidden" style={{ width: '100%', aspectRatio: '16/9' }}>
-            <div className="absolute inset-0" ref={comicRef}>
+            <div className="absolute inset-0" ref={contentContainerRef}>
               <Image 
                 ref={imageRef}
                 src={content?.imageUrl || fallbackImageUrl} 
