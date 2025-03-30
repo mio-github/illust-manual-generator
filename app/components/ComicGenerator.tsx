@@ -357,6 +357,23 @@ function DraggableBubble({
     writingMode: bubble.writing === 'vertical' ? 'vertical-rl' as const : 'horizontal-tb' as const,
   };
   
+  useEffect(() => {
+    // transformがセットされたときに位置を更新
+    if (transform) {
+      const dx = transform.x;
+      const dy = transform.y;
+      
+      // 位置の更新だけで、サイズは変更しない
+      const updatedStyle = {
+        x: bubble.x + dx,
+        y: bubble.y + dy
+      };
+      
+      // onUpdateを呼び出して位置を反映（直接DOMを操作しない）
+      onUpdate(index, updatedStyle);
+    }
+  }, [transform?.x, transform?.y]);
+  
   return (
     <BubbleContextMenu
       bubble={bubble}
@@ -698,6 +715,25 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       const originalWidth = imageRef.current?.naturalWidth || 1024;
       const originalHeight = imageRef.current?.naturalHeight || 1024;
       
+      // 出力用に吹き出しのスタイルを一時的に適用
+      // 現在のセリフ設定を取得して反映
+      const bubbleElements = comicRef.current.querySelectorAll('.bubble-editor');
+      bubbleElements.forEach((bubble, index) => {
+        const bubbleStyle = bubblePositions[index];
+        if (bubbleStyle) {
+          // 現在の設定に基づいて出力スタイルを適用
+          (bubble as HTMLElement).style.backgroundColor = `rgba(255, 255, 255, ${bubbleStyle.opacity || 0.95})`;
+          (bubble as HTMLElement).style.fontFamily = bubbleStyle.fontFamily || appConfig.defaultBubbleStyle.fontFamily;
+          (bubble as HTMLElement).style.fontSize = `${bubbleStyle.fontSize || appConfig.defaultBubbleStyle.fontSize}px`;
+          (bubble as HTMLElement).style.fontWeight = bubbleStyle.fontWeight || appConfig.defaultBubbleStyle.fontWeight as string;
+          (bubble as HTMLElement).style.color = bubbleStyle.color || appConfig.defaultBubbleStyle.color;
+          // 吹き出しのスタイルを反映
+          if (bubbleStyle.bubbleStyle) {
+            (bubble as HTMLElement).classList.add(`bubble-${bubbleStyle.bubbleStyle}`);
+          }
+        }
+      });
+      
       // html2canvasでキャプチャ
       const canvas = await html2canvas(comicRef.current, {
         backgroundColor: null,
@@ -710,6 +746,21 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
           const clonedElement = element as HTMLElement;
           clonedElement.style.width = `${originalWidth}px`;
           clonedElement.style.height = `${originalHeight}px`;
+          
+          // クローン先の吹き出しにも設定を適用
+          const clonedBubbles = clonedElement.querySelectorAll('.bubble-editor');
+          clonedBubbles.forEach((bubble, index) => {
+            const bubbleStyle = bubblePositions[index];
+            if (bubbleStyle) {
+              // border-colorをnoneに設定して吹き出しの境界線を非表示に
+              (bubble as HTMLElement).style.borderColor = 'transparent';
+              // コントロールを非表示に
+              const controls = bubble.querySelectorAll('.bubble-control');
+              controls.forEach(control => {
+                (control as HTMLElement).style.display = 'none';
+              });
+            }
+          });
         }
       });
       

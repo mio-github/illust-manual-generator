@@ -116,7 +116,7 @@ footer {
 
 .exporting .bubble-editor {
   border: none !important;
-  background-color: rgba(255, 255, 255, 0.85) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
 }
 
 .exporting .ui-control {
@@ -128,7 +128,7 @@ footer {
 .exporting .bubble-editor.bubble-think::before,
 .exporting .bubble-editor.bubble-think::after {
   display: block !important;
-  border-color: rgba(51, 51, 51, 0.85) transparent !important;
+  border-color: rgba(51, 51, 51, 0.95) transparent !important;
 }
 
 /* 吹き出しのスタイル（出力用） */
@@ -144,7 +144,7 @@ footer {
   position: relative;
   border: 2px solid #333;
   border-radius: 1rem;
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.95);
 }
 
 .bubble-anime::before {
@@ -174,20 +174,20 @@ footer {
 .bubble-round {
   border: 2px solid #333;
   border-radius: 2rem;
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.95);
 }
 
 .bubble-cloud {
   border: 2px solid #333;
   border-radius: 50% 50% 50% 20%;
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.95);
 }
 
 .bubble-think {
   position: relative;
   border: 2px solid #333;
   border-radius: 2rem;
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.95);
 }
 
 .bubble-think::before {
@@ -216,6 +216,6 @@ footer {
 
 .bubble-shout {
   border: 2px solid #333;
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.95);
   clip-path: polygon(0% 0%, 100% 0%, 90% 70%, 100% 100%, 0% 100%);
 } 

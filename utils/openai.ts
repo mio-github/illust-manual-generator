@@ -20,7 +20,7 @@ const languagePromptPrefix = {
 
 // 言語ごとの指示強化文
 const languageEnforcement = {
-  ja: '必ず日本語だけで返答してください。出力は日本語以外の言語を含めないでください。',
+  ja: '必ず日本語だけで返答してください。出力は画像も含めて日本語以外の言語を含めないでください。',
   en: 'Please respond in English only. Do not include any other languages in your output.',
   zh: '请务必只用中文回答。输出中不要包含中文以外的语言。',
   ko: '반드시 한국어로만 답변해 주세요. 출력에 한국어 이외의 언어를 포함하지 마세요.'
@@ -413,14 +413,12 @@ export async function composePanelsIntoComic(
 /**
  * 1枚の画像内に複数コマのレイアウトを持つイラストを生成する関数（セリフなし）
  * @param prompt ユーザーのプロンプト
- * @param panelCount コマ数
  * @param dialogues セリフの配列（セリフなしで吹き出しのみ生成するため参照のみ）
  * @param options 画像生成オプション
  * @returns 生成された画像のURL
  */
 export async function generateMultiPanelComic(
   prompt: string,
-  panelCount: number,
   dialogues: string[][],
   options: {
     model?: string;
@@ -430,6 +428,9 @@ export async function generateMultiPanelComic(
   } = {}
 ) {
   try {
+    // 対話の数に基づいて適切なコマ数を決定
+    const panelCount = dialogues.length;
+    
     console.log('[マルチパネルイラスト生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
       panelCount,
@@ -445,7 +446,7 @@ export async function generateMultiPanelComic(
     
     // 特別なプロンプトを作成
     const enhancedPrompt = `
-      ${prompt} について、${panelCount}コマのナビゲーションイラストレイアウトを作成してください。
+      ${prompt} について、最適な数のコマで表現するナビゲーションイラストレイアウトを作成してください。
       
       【重要な指示 - 必ず守ってください】
       - 1枚の画像の中に${panelCount}コマのナビゲーションイラストレイアウトを作成してください

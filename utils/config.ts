@@ -69,7 +69,7 @@ export const appConfig = {
     fontFamily: "'Kosugi Maru', 'M PLUS Rounded 1c', sans-serif",
     fontSize: 16,
     fontWeight: 'bold',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: '1rem',
     borderColor: '#333',
     borderWidth: 2,
