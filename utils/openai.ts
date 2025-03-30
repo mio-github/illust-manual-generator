@@ -1,5 +1,15 @@
 import { openaiConfig, imageGenerationConfig } from './config';
 
+// 言語オプション
+export type SupportedLanguage = 'ja' | 'en' | 'zh' | 'ko';
+
+export const languageNames = {
+  ja: '日本語',
+  en: '英語',
+  zh: '中国語',
+  ko: '韓国語'
+};
+
 /**
  * OpenAI APIを使用してテキスト生成を行う関数
  * @param prompt ユーザーのプロンプト
@@ -156,19 +166,31 @@ export async function generateImage(
  * プロンプトに基づいてセリフを生成する関数
  * @param prompt プロンプト
  * @param panelCount コマ数
+ * @param language 生成する言語
  * @returns 生成されたセリフの配列
  */
-export async function generateDialogues(prompt: string, panelCount: number): Promise<string[][]> {
+export async function generateDialogues(
+  prompt: string, 
+  panelCount: number, 
+  language: SupportedLanguage = 'ja'
+): Promise<string[][]> {
   try {
     console.log('[セリフ生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
-      panelCount
+      panelCount,
+      language
     });
     
+    // 言語に応じたプロンプトの調整
+    const languageText = language === 'ja' ? '日本語' : 
+                         language === 'en' ? '英語' :
+                         language === 'zh' ? '中国語' :
+                         language === 'ko' ? '韓国語' : '日本語';
+    
     const systemPrompt = `
-      以下の説明に基づいて、${panelCount}コマの日本語の漫画のセリフを生成してください。
+      以下の説明に基づいて、${panelCount}コマの漫画のセリフを${languageText}で生成してください。
       各コマには1〜2人の登場人物のセリフを含めてください。
-      セリフは日本語で、各コマの内容に合わせて連続性を持たせてください。
+      セリフは${languageText}で、各コマの内容に合わせて連続性を持たせてください。
       最初のコマは導入、最後のコマは結論になるようにしてください。
       出力形式はJSON配列で、各コマのセリフを配列として返してください。
       例: [["こんにちは", "どうも"], ["説明します", "なるほど"], ...]
@@ -238,12 +260,35 @@ export async function generateDialogues(prompt: string, panelCount: number): Pro
     }
   } catch (error) {
     console.error('[セリフ生成エラー]', error);
-    // エラーの場合はデフォルトのセリフを返す
-    const defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
-      if (i === 0) return ['こんにちは', '今日はこの話をします'];
-      if (i === panelCount - 1) return ['これで説明は終わりです', 'ありがとうございました'];
-      return [`${i+1}コマ目のセリフです`, 'なるほど、わかりやすいです'];
-    });
+    // エラーの場合は言語に応じたデフォルトのセリフを返す
+    let defaultDialogues;
+    
+    if (language === 'en') {
+      defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
+        if (i === 0) return ['Hello', 'Let me tell you about this topic'];
+        if (i === panelCount - 1) return ['That concludes our explanation', 'Thank you!'];
+        return [`This is panel ${i+1}`, 'I see, that makes sense'];
+      });
+    } else if (language === 'zh') {
+      defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
+        if (i === 0) return ['你好', '让我告诉你这个话题'];
+        if (i === panelCount - 1) return ['这就是我们的解释', '谢谢！'];
+        return [`这是第${i+1}幅画`, '我明白了，有道理'];
+      });
+    } else if (language === 'ko') {
+      defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
+        if (i === 0) return ['안녕하세요', '이 주제에 대해 말씀드리겠습니다'];
+        if (i === panelCount - 1) return ['설명이 끝났습니다', '감사합니다!'];
+        return [`이것은 ${i+1}번째 패널입니다`, '이해했습니다, 말이 됩니다'];
+      });
+    } else {
+      // デフォルトは日本語
+      defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
+        if (i === 0) return ['こんにちは', '今日はこの話をします'];
+        if (i === panelCount - 1) return ['これで説明は終わりです', 'ありがとうございました'];
+        return [`${i+1}コマ目のセリフです`, 'なるほど、わかりやすいです'];
+      });
+    }
     
     console.log('[セリフ生成] デフォルトセリフを使用', { defaultDialogues });
     return defaultDialogues;
@@ -315,7 +360,7 @@ export async function composePanelsIntoComic(
 }
 
 /**
- * 1枚の画像内に複数コマのレイアウトを持つ漫画を生成する関数
+ * 1枚の画像内に複数コマのレイアウトを持つ漫画を生成する関数（セリフなし）
  * @param prompt ユーザーのプロンプト
  * @param panelCount コマ数
  * @param dialogues セリフの配列（セリフなしで吹き出しのみ生成するため参照のみ）
@@ -373,6 +418,84 @@ export async function generateMultiPanelComic(
     });
   } catch (error) {
     console.error('[マルチパネル漫画生成エラー]', error);
+    // エラーの場合はプレースホルダー画像を返す
+    return `https://placehold.co/1024x1024?text=${encodeURIComponent('漫画生成エラー')}`;
+  }
+}
+
+/**
+ * 1枚の画像内に複数コマのレイアウトを持つ漫画を生成する関数（セリフ付き）
+ * @param prompt ユーザーのプロンプト
+ * @param panelCount コマ数
+ * @param dialogues セリフの配列
+ * @param language 言語設定
+ * @param options 画像生成オプション
+ * @returns 生成された画像のURL
+ */
+export async function generateMultiPanelComicWithText(
+  prompt: string,
+  panelCount: number,
+  dialogues: string[][],
+  language: SupportedLanguage = 'ja',
+  options: {
+    model?: string;
+    quality?: string;
+    size?: string;
+    style?: string;
+  } = {}
+) {
+  try {
+    console.log('[セリフ付き漫画生成開始]', { 
+      prompt: prompt.substring(0, 50) + '...',
+      panelCount,
+      dialoguesCount: dialogues.length,
+      language
+    });
+    
+    // 各コマの内容をまとめた説明を作成
+    const panelDescriptions = dialogues.map((panelDialogues, index) => {
+      const panelNum = index + 1;
+      const dialogueTexts = panelDialogues.map((text, i) => 
+        `${i === 0 ? '人物1' : '人物2'}: 「${text}」`
+      ).join(' ');
+      
+      return `コマ${panelNum}: ${dialogueTexts}`;
+    }).join('\n');
+    
+    // 言語に応じたスタイル指定
+    const languageStyleText = 
+      language === 'ja' ? '日本語漫画' : 
+      language === 'en' ? '英語のコミック' :
+      language === 'zh' ? '中国語の漫画' :
+      language === 'ko' ? '韓国語のウェブトゥーン' : '漫画';
+    
+    // 特別なプロンプトを作成（セリフ付き）
+    const enhancedPrompt = `
+      ${prompt} について、${panelCount}コマの${languageStyleText}を作成してください。
+      
+      【重要な指示】
+      - 1枚の画像の中に${panelCount}コマの漫画レイアウトを作成してください
+      - 各コマは明確に区切られ、順番がわかるようにしてください
+      - 各コマには吹き出しを含め、その中に対応するセリフを${language}で明確に書き込んでください
+      - 吹き出しの中のテキストは読みやすく、明確に表示してください
+      - ${languageStyleText}のスタイルで、読みやすい構図にしてください
+      - 各コマの内容とセリフは以下の通りです：
+      ${panelDescriptions}
+      
+      スタイル: ${options.style || 'シンプルで見やすい漫画'}
+    `.trim();
+    
+    console.log('[セリフ付き漫画] 生成プロンプト:', enhancedPrompt);
+    
+    // 画像サイズを調整（複数コマを含むためより大きく）
+    const size = '1024x1024'; // 正方形で大きめのサイズを指定
+    
+    return await generateImage(enhancedPrompt, {
+      ...options,
+      size
+    });
+  } catch (error) {
+    console.error('[セリフ付き漫画生成エラー]', error);
     // エラーの場合はプレースホルダー画像を返す
     return `https://placehold.co/1024x1024?text=${encodeURIComponent('漫画生成エラー')}`;
   }

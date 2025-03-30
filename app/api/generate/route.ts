@@ -4,7 +4,9 @@ import {
   generateDialogues, 
   generateSceneWithoutText, 
   composePanelsIntoComic,
-  generateMultiPanelComic
+  generateMultiPanelComic,
+  generateMultiPanelComicWithText,
+  SupportedLanguage
 } from '@/utils/openai';
 
 export async function POST(req: NextRequest) {
@@ -16,12 +18,23 @@ export async function POST(req: NextRequest) {
     
     // リクエストボディを取得
     const body = await req.json();
-    const { prompt, panels = appConfig.defaultPanels, style = appConfig.defaultStyle } = body;
+    const { 
+      prompt, 
+      panels = appConfig.defaultPanels, 
+      style = appConfig.defaultStyle,
+      language = 'ja',  // 言語設定（デフォルトは日本語）
+      withText = true   // セリフを画像に含めるかどうか
+    } = body;
+    
+    // 言語の検証
+    const validLang = ['ja', 'en', 'zh', 'ko'].includes(language) ? language as SupportedLanguage : 'ja';
     
     console.log(`[${requestId}] リクエスト解析完了`, { 
       prompt, 
       panels, 
       style,
+      language: validLang,
+      withText,
       timestamp: new Date().toISOString()
     });
 
@@ -45,6 +58,8 @@ export async function POST(req: NextRequest) {
     console.log(`[${requestId}] プロンプト: ${prompt}`);
     console.log(`[${requestId}] コマ数: ${actualPanels}`);
     console.log(`[${requestId}] スタイル: ${style}`);
+    console.log(`[${requestId}] 言語: ${validLang}`);
+    console.log(`[${requestId}] セリフ表示: ${withText ? 'あり' : 'なし'}`);
     
     // 処理開始時間を記録
     const startTime = Date.now();
@@ -56,35 +71,57 @@ export async function POST(req: NextRequest) {
     console.log(`[${requestId}] 2. セリフとシーン構成の生成を開始...`);
     let dialogues;
     try {
-      dialogues = await generateDialogues(prompt, actualPanels);
+      dialogues = await generateDialogues(prompt, actualPanels, validLang);
       console.log(`[${requestId}] セリフ生成完了: ${JSON.stringify(dialogues)}`);
     } catch (dialogueError) {
       console.error(`[${requestId}] セリフ生成中にエラーが発生しました`, dialogueError);
       throw new Error(`セリフ生成エラー: ${dialogueError instanceof Error ? dialogueError.message : '不明なエラー'}`);
     }
     
-    // 3. 1枚の画像内に複数コマの漫画を生成
-    console.log(`[${requestId}] 3. コマ割り漫画の生成を開始...`);
+    // 3. 漫画画像の生成（セリフあり/なし）
+    console.log(`[${requestId}] 3. 漫画画像の生成を開始...`);
     let comicImageUrl;
     try {
-      comicImageUrl = await generateMultiPanelComic(prompt, actualPanels, dialogues, {
-        quality: style === 'simple' ? 'standard' : 'hd',
-        style
-      });
-      console.log(`[${requestId}] コマ割り漫画の生成完了:`, comicImageUrl.substring(0, 100) + '...');
+      if (withText) {
+        // セリフ付きの漫画を生成
+        comicImageUrl = await generateMultiPanelComicWithText(
+          prompt, 
+          actualPanels, 
+          dialogues, 
+          validLang,
+          {
+            quality: style === 'simple' ? 'standard' : 'hd',
+            style
+          }
+        );
+        console.log(`[${requestId}] セリフ付き漫画生成完了:`, comicImageUrl.substring(0, 100) + '...');
+      } else {
+        // セリフなしの漫画を生成（吹き出しのみ）
+        comicImageUrl = await generateMultiPanelComic(
+          prompt, 
+          actualPanels, 
+          dialogues,
+          {
+            quality: style === 'simple' ? 'standard' : 'hd',
+            style
+          }
+        );
+        console.log(`[${requestId}] セリフなし漫画生成完了:`, comicImageUrl.substring(0, 100) + '...');
+      }
     } catch (imageError) {
-      console.error(`[${requestId}] コマ割り漫画の生成中にエラーが発生しました`, imageError);
+      console.error(`[${requestId}] 漫画生成中にエラーが発生しました`, imageError);
       throw new Error(`漫画生成エラー: ${imageError instanceof Error ? imageError.message : '不明なエラー'}`);
     }
     
     // 結果をまとめる
-    // 注: 現在は1枚の画像にすべてのコマが含まれるため、contentには1つの要素だけ含まれる
     const generatedContent = [{
       imageUrl: comicImageUrl,
       dialogues: dialogues.flat(), // すべてのセリフをフラット化
       caption: prompt,
       isMultiPanel: true,
-      panelCount: actualPanels
+      panelCount: actualPanels,
+      withText: withText,
+      language: validLang
     }];
     
     // 処理完了時間を計算
@@ -98,9 +135,11 @@ export async function POST(req: NextRequest) {
       panelCount: actualPanels,
       prompt,
       style,
+      language: validLang,
+      withText,
       processingTime: totalTime,
       panelDialogues: dialogues, // 各コマごとのセリフも返す
-      message: `${actualPanels}コマの漫画が1枚の画像として生成されました。各コマには吹き出しが含まれています。`
+      message: `${actualPanels}コマの漫画が1枚の画像として生成されました。言語: ${validLang}, セリフ: ${withText ? 'あり' : 'なし'}`
     };
     
     console.log(`[${requestId}] 漫画生成API呼び出し完了`);
