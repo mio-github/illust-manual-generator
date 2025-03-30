@@ -104,7 +104,7 @@ export const APP_CONFIG = {
 export const LANGUAGE_CONFIG = {
   // 言語ごとのシステムプロンプト接頭辞
   PROMPT_PREFIX: {
-    ja: 'あなたは日本語のイラスト制作のプロです。以下のタスクを日本語で行ってください。',
+    ja: 'あなたは日本向けのイラスト制作のプロです。以下のタスクを日本向けに行ってください。',
     en: 'You are a professional illustration creator. Please complete the following task in English only.',
     vi: 'Bạn là một chuyên gia tạo hình minh họa. Vui lòng hoàn thành nhiệm vụ sau đây bằng tiếng Việt.',
     zh: '您是专业的插图创作者。请用中文完成以下任务。',

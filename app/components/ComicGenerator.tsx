@@ -65,6 +65,9 @@ interface ComicGeneratorProps {
   panelDialogues?: string[][];
 }
 
+// 保存方法の選択肢を定義
+type SaveMethod = 'html2canvas' | 'direct';
+
 // 右クリックメニューコンポーネント
 function BubbleContextMenu({ 
   children, 
@@ -479,6 +482,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   const imageRef = useRef<HTMLImageElement>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const [bubblePositions, setBubblePositions] = useState<BubblePosition[]>([]);
+  const [saveMethod, setSaveMethod] = useState<SaveMethod>('direct'); // 追加：保存方法の状態
   
   // フォントファミリーオプション
   const fontFamilies = [
@@ -796,7 +800,46 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
     console.log('Drag ended', event);
   };
   
-  const handleDownload = async () => {
+  // 保存方法切り替えハンドラを追加
+  const handleSaveMethodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSaveMethod(e.target.value as SaveMethod);
+  };
+
+  // 直接画像を保存する関数を追加
+  const saveImageDirectly = async () => {
+    try {
+      // 元の画像URLを取得
+      const imageUrl = content?.imageUrl || '';
+      if (!imageUrl) {
+        alert('保存する画像がありません');
+        return;
+      }
+
+      // 画像URLがBlobURLの場合は直接使用、そうでない場合はfetchして変換
+      let blob: Blob;
+      if (imageUrl.startsWith('blob:')) {
+        // BlobURLから元のBlobを取得
+        const response = await fetch(imageUrl);
+        blob = await response.blob();
+      } else {
+        // 外部URLの場合はCORSをバイパスするためサーバーサイドで処理
+        const response = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
+        blob = await response.blob();
+      }
+
+      // ファイル名を設定して保存
+      const fileName = projectName || `illustrated-guide-${new Date().toISOString().slice(0, 10)}`;
+      saveAs(blob, `${fileName}.png`);
+      
+      console.log('画像を直接保存しました: ', imageUrl);
+    } catch (error) {
+      console.error('画像の直接保存に失敗しました', error);
+      alert('画像の保存に失敗しました。もう一度お試しください。');
+    }
+  };
+
+  // html2canvasによる保存処理を改良
+  const saveWithHtml2Canvas = async () => {
     if (!comicRef.current) return;
     
     try {
@@ -812,110 +855,91 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       // 画像が完全に表示されるまで待機
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // 画像が完全に読み込まれていることを確認
-      if (imageRef.current && !imageRef.current.complete) {
-        await new Promise(resolve => {
-          if (imageRef.current) {
-            imageRef.current.onload = resolve;
-          } else {
-            resolve(null);
-          }
-        });
-      }
-      
-      // 画像の縦横比を取得
+      // 画像の自然なサイズを取得
       const originalWidth = imageRef.current?.naturalWidth || 1024;
       const originalHeight = imageRef.current?.naturalHeight || 1024;
       console.log('元画像サイズ:', { originalWidth, originalHeight });
       
-      // 画像の実際のサイズを取得
-      const imgRect = imageRef.current?.getBoundingClientRect();
-      
-      // 出力用に吹き出しのスタイルを一時的に適用
-      // 現在のセリフ設定を取得して反映
+      // 吹き出し要素のスタイルを一時的に適用
       const bubbleElements = comicRef.current.querySelectorAll('.bubble-editor');
       bubbleElements.forEach((bubble, index) => {
         const bubbleStyle = bubblePositions[index];
         if (bubbleStyle) {
-          // 現在の設定に基づいて出力スタイルを適用
           (bubble as HTMLElement).style.backgroundColor = `rgba(255, 255, 255, ${bubbleStyle.opacity || 0.95})`;
           (bubble as HTMLElement).style.fontFamily = bubbleStyle.fontFamily || appConfig.defaultBubbleStyle.fontFamily;
           (bubble as HTMLElement).style.fontSize = `${bubbleStyle.fontSize || appConfig.defaultBubbleStyle.fontSize}px`;
           (bubble as HTMLElement).style.fontWeight = bubbleStyle.fontWeight || appConfig.defaultBubbleStyle.fontWeight as string;
           (bubble as HTMLElement).style.color = bubbleStyle.color || appConfig.defaultBubbleStyle.color;
-          // 吹き出しのスタイルを反映
           if (bubbleStyle.bubbleStyle) {
             (bubble as HTMLElement).classList.add(`bubble-${bubbleStyle.bubbleStyle}`);
           }
-          // 境界線を透明に
           (bubble as HTMLElement).style.borderColor = 'transparent';
         }
       });
       
-      // 一時的なクローン要素を作成して、自由にスタイルを変更できるようにする
-      const cloneElement = comicRef.current.cloneNode(true) as HTMLElement;
-      document.body.appendChild(cloneElement);
+      // 極めてシンプルな構造のdivを作成して画像を表示
+      const tempDiv = document.createElement('div');
+      tempDiv.style.width = `${originalWidth}px`;
+      tempDiv.style.height = `${originalHeight}px`;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      document.body.appendChild(tempDiv);
       
-      // クローン要素のスタイルを設定して、キャプチャに最適化
-      cloneElement.style.position = 'absolute';
-      cloneElement.style.top = '-9999px';
-      cloneElement.style.left = '-9999px';
-      cloneElement.style.width = originalWidth + 'px';
-      cloneElement.style.height = originalHeight + 'px';
-      cloneElement.style.transform = 'none';
-      cloneElement.style.transformOrigin = 'top left';
+      // 画像要素を作成
+      const img = document.createElement('img');
+      img.src = content?.imageUrl || fallbackImageUrl;
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'contain';
+      tempDiv.appendChild(img);
       
-      // クローン内の画像要素のスタイルを修正
-      const cloneImg = cloneElement.querySelector('img');
-      if (cloneImg) {
-        cloneImg.style.width = '100%';
-        cloneImg.style.height = '100%';
-        cloneImg.style.objectFit = 'contain';
-        cloneImg.style.position = 'relative';
-        cloneImg.style.transform = 'none';
-      }
-      
-      // クローン内の吹き出し要素のコントロールを非表示
-      const cloneBubbles = cloneElement.querySelectorAll('.bubble-editor');
-      cloneBubbles.forEach(bubble => {
-        const controls = bubble.querySelectorAll('.bubble-control');
+      // 吹き出しをクローンして追加
+      bubbleElements.forEach((bubble, index) => {
+        const clone = bubble.cloneNode(true) as HTMLElement;
+        // コントロールを非表示
+        const controls = clone.querySelectorAll('.bubble-control');
         controls.forEach(control => {
           (control as HTMLElement).style.display = 'none';
         });
-        (bubble as HTMLElement).style.borderColor = 'transparent';
+        // 位置を絶対位置に
+        clone.style.position = 'absolute';
+        clone.style.left = `${bubblePositions[index].x}px`;
+        clone.style.top = `${bubblePositions[index].y}px`;
+        clone.style.width = `${bubblePositions[index].width}px`;
+        clone.style.minHeight = `${bubblePositions[index].height}px`;
+        clone.style.borderColor = 'transparent';
+        tempDiv.appendChild(clone);
       });
       
-      // クローン内のアスペクト比固定のdivを修正
-      const aspectRatioDiv = cloneElement.querySelector('div[style*="aspectRatio"]');
-      if (aspectRatioDiv) {
-        (aspectRatioDiv as HTMLElement).style.width = '100%';
-        (aspectRatioDiv as HTMLElement).style.height = '100%';
-        (aspectRatioDiv as HTMLElement).style.position = 'relative';
-        (aspectRatioDiv as HTMLElement).style.aspectRatio = 'auto';
-      }
+      // 画像ロード完了を待機
+      await new Promise<void>((resolve) => {
+        if (img.complete) {
+          resolve();
+        } else {
+          img.onload = () => resolve();
+          img.onerror = () => {
+            console.error('画像の読み込みに失敗しました');
+            resolve();
+          };
+        }
+      });
       
-      // クローン内の絶対配置されたdivを修正
-      const absoluteDiv = cloneElement.querySelector('div.absolute.inset-0');
-      if (absoluteDiv) {
-        (absoluteDiv as HTMLElement).style.position = 'relative';
-        (absoluteDiv as HTMLElement).style.inset = 'auto';
-        (absoluteDiv as HTMLElement).style.width = '100%';
-        (absoluteDiv as HTMLElement).style.height = '100%';
-      }
-      
-      // 修正されたクローン要素をキャプチャ
-      const canvas = await html2canvas(cloneElement, {
+      // html2canvasでシンプルな構造をキャプチャ
+      const canvas = await html2canvas(tempDiv, {
         backgroundColor: null,
         scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: true,
-        imageTimeout: 0,
-        removeContainer: true,
+        onclone: (doc, element) => {
+          console.log('Cloned element:', element);
+          return element;
+        }
       });
       
-      // クローン要素をDOM削除
-      document.body.removeChild(cloneElement);
+      // 一時要素を削除
+      document.body.removeChild(tempDiv);
       
       // 画像ファイル名を設定
       const fileName = projectName || `illustrated-guide-${new Date().toISOString().slice(0, 10)}`;
@@ -924,6 +948,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       canvas.toBlob(blob => {
         if (blob) {
           saveAs(blob, `${fileName}.png`);
+          console.log('html2canvasで画像を保存しました');
         }
       }, 'image/png');
       
@@ -932,7 +957,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       setEditMode(prevEditMode);
       
     } catch (error) {
-      console.error('画像のダウンロードに失敗しました', error);
+      console.error('html2canvasでの画像保存に失敗しました', error);
       alert('画像のダウンロードに失敗しました。もう一度お試しください。');
       
       // エラー時も元に戻す
@@ -940,6 +965,15 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
         comicRef.current.classList.remove('exporting');
       }
       setEditMode(true);
+    }
+  };
+  
+  // handleDownload関数を更新して、選択された方法で保存
+  const handleDownload = async () => {
+    if (saveMethod === 'direct') {
+      await saveImageDirectly();
+    } else {
+      await saveWithHtml2Canvas();
     }
   };
   
@@ -1313,12 +1347,21 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
         >
           セリフをリセット
         </button>
-        <div className="flex gap-2">
-          <button 
-            className="btn-primary" 
+        <div className="flex items-center space-x-2">
+          <select 
+            value={saveMethod}
+            onChange={handleSaveMethodChange}
+            className="p-2 border rounded"
+          >
+            <option value="direct">原画像を保存 (推奨)</option>
+            <option value="html2canvas">吹き出し込みで保存 (実験的)</option>
+          </select>
+          
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             onClick={handleDownload}
           >
-            画像として保存
+            画像を保存
           </button>
         </div>
       </div>
