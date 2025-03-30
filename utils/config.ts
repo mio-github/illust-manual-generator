@@ -57,7 +57,10 @@ export const appConfig = {
   maxPanelCount: 6,     // 最大コマ数
   minPanelCount: 2,     // 最小コマ数
   defaultStyle: '日本のイラスト風', // デフォルトの画像スタイル
-  allowedLanguages: ['ja', 'en', 'zh', 'ko'] as const // 対応言語
+  allowedLanguages: ['ja', 'en', 'zh', 'ko'] as const, // 対応言語
+  
+  // デフォルトのイラストプロンプト詳細設定
+  defaultStylePrompt: `明るく親しみやすい色合い、クリーンな線画、表情豊かで少しデフォルメされた「かわいい」キャラクター。ミニキャラ風のアニメタッチ。吹き出しは空白で、後からセリフを入れられる構成。背景はシンプルで、場面の雰囲気がわかる程度。全体的にポップで温かみのある雰囲気。`
 };
 
 // 環境変数のバリデーション

@@ -1,4 +1,4 @@
-import { openaiConfig, imageGenerationConfig } from './config';
+import { openaiConfig, imageGenerationConfig, appConfig } from './config';
 
 // 言語オプション
 export type SupportedLanguage = 'ja' | 'en' | 'zh' | 'ko';
@@ -454,7 +454,8 @@ export async function generateMultiPanelComic(
       - 吹き出しは会話の流れが予想できる適切な位置に配置してください
       - 各コマには最低1つ、状況に応じて2〜3つの吹き出しを適切に配置してください
       - 吹き出しは中が空白で、後からテキストを入れられるように十分なスペースを確保してください
-      - ${options.style || '日本のイラスト風'}のスタイルで、読みやすい構図にしてください
+      - スタイル: ${options.style || appConfig.defaultStyle}
+      - スタイル詳細: ${appConfig.defaultStylePrompt}
       - 各コマの内容は以下の通りです：
       ${panelDescriptions}
     `.trim();
@@ -539,7 +540,8 @@ export async function generateMultiPanelComicWithText(
       各コマの内容とセリフは以下の通りです：
       ${panelDescriptions}
       
-      スタイル: ${options.style || 'シンプルで見やすいナビゲーションイラスト'}
+      スタイル: ${options.style || appConfig.defaultStyle}
+      スタイル詳細: ${appConfig.defaultStylePrompt}
       
       ${languageEnforcement[language]}
     `.trim();
