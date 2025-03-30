@@ -9,9 +9,9 @@ export default function Home() {
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
   const [panels, setPanels] = useState(4);
-  const [style, setStyle] = useState('standard');
+  const [style, setStyle] = useState('日本のイラスト風');
   const [language, setLanguage] = useState<SupportedLanguage>('ja');
-  const [withText, setWithText] = useState(true);
+  const [withText, setWithText] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -112,10 +112,12 @@ export default function Home() {
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
               >
-                <option value="standard">標準</option>
-                <option value="manga">マンガ風</option>
-                <option value="simple">シンプル</option>
-                <option value="cute">かわいい</option>
+                <option value="日本のイラスト風">日本のイラスト風</option>
+                <option value="リアル">リアル</option>
+                <option value="アニメ">アニメ</option>
+                <option value="水彩画">水彩画</option>
+                <option value="漫画">漫画</option>
+                <option value="ピクセルアート">ピクセルアート</option>
               </select>
             </div>
             

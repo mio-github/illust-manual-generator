@@ -61,7 +61,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   const [showCaptions, setShowCaptions] = useState(true);
   
   // 吹き出し位置の編集用
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(true);
   const comicRef = useRef<HTMLDivElement>(null);
   const [bubblePositions, setBubblePositions] = useState<BubblePosition[]>([]);
   
@@ -235,7 +235,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
             <span className="ml-2 text-sm font-medium text-gray-700">キャプション表示</span>
           </label>
           
-          {isMultiPanelComic && !withText && (
+          {isMultiPanelComic && (
             <button
               className={`px-3 py-1 rounded text-sm ${editMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
               onClick={() => setEditMode(!editMode)}
@@ -281,7 +281,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
             </div>
             
             {/* 吹き出し編集モード */}
-            {editMode && !withText && (
+            {editMode && isMultiPanelComic && (
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
                 {bubblePositions.map((bubble, index) => (
                   <div
@@ -309,8 +309,8 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
               </div>
             )}
             
-            {/* セリフ表示 - 編集モードでない場合、かつwithTextがfalseの場合 */}
-            {!editMode && !withText && (
+            {/* セリフ表示 - 編集モードでない場合 */}
+            {!editMode && isMultiPanelComic && (
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
                 {bubblePositions.map((bubble, index) => (
                   <div

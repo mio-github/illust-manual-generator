@@ -21,9 +21,11 @@ export const imageGenerationConfig = {
 
 // アプリケーション全般設定
 export const appConfig = {
-  maxPanels: parseInt(process.env.MAX_PANELS || '6', 10),
-  defaultPanels: parseInt(process.env.DEFAULT_PANELS || '4', 10),
-  defaultStyle: process.env.DEFAULT_STYLE || 'default',
+  defaultPanelCount: 4, // デフォルトのコマ数
+  maxPanelCount: 6,     // 最大コマ数
+  minPanelCount: 2,     // 最小コマ数
+  defaultStyle: '日本のイラスト風', // デフォルトの画像スタイル
+  allowedLanguages: ['ja', 'en', 'zh', 'ko'] as const // 対応言語
 };
 
 // 環境変数のバリデーション

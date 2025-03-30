@@ -20,10 +20,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { 
       prompt, 
-      panels = appConfig.defaultPanels, 
+      panelCount = appConfig.defaultPanelCount, 
       style = appConfig.defaultStyle,
       language = 'ja',  // 言語設定（デフォルトは日本語）
-      withText = true   // セリフを画像に含めるかどうか
+      withText = false   // セリフを画像に含めるかどうか
     } = body;
     
     // 言語の検証
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     
     console.log(`[${requestId}] リクエスト解析完了`, { 
       prompt, 
-      panels, 
+      panelCount, 
       style,
       language: validLang,
       withText,
@@ -47,10 +47,13 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // コマ数をMAX_PANELSまでに制限
-    const maxPanels = appConfig.maxPanels;
-    const actualPanels = Math.min(Math.max(1, panels), maxPanels);
-    if (panels !== actualPanels) {
+    // リクエスト検証
+    const panels = Number(panelCount) || appConfig.defaultPanelCount;
+
+    // パネル数を有効な範囲に調整
+    let actualPanels = panels;
+    if (panels < appConfig.minPanelCount || panels > appConfig.maxPanelCount) {
+      actualPanels = Math.min(Math.max(panels, appConfig.minPanelCount), appConfig.maxPanelCount);
       console.log(`[${requestId}] 指定されたコマ数(${panels})が範囲外のため、${actualPanels}コマに調整されました`);
     }
 
