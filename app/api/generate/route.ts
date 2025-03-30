@@ -3,18 +3,26 @@ import { appConfig } from '@/utils/config';
 import { generateDialogues, generateImage } from '@/utils/openai';
 
 export async function POST(req: NextRequest) {
+  // リクエストIDを生成（ログ追跡用）
+  const requestId = Math.random().toString(36).substring(2, 10);
+  
   try {
-    console.log('画像生成APIが呼び出されました');
+    console.log(`[${requestId}] 漫画生成API呼び出し開始`);
     
     // リクエストボディを取得
     const body = await req.json();
     const { prompt, panels = appConfig.defaultPanels, style = appConfig.defaultStyle } = body;
     
-    console.log('リクエスト内容:', { prompt, panels, style });
+    console.log(`[${requestId}] リクエスト解析完了`, { 
+      prompt, 
+      panels, 
+      style,
+      timestamp: new Date().toISOString()
+    });
 
     // バリデーション
     if (!prompt) {
-      console.error('バリデーションエラー: プロンプトが空です');
+      console.error(`[${requestId}] バリデーションエラー: プロンプトが空です`);
       return NextResponse.json(
         { error: 'プロンプトは必須です' },
         { status: 400 }
@@ -25,21 +33,27 @@ export async function POST(req: NextRequest) {
     const maxPanels = appConfig.maxPanels;
     const actualPanels = Math.min(Math.max(1, panels), maxPanels);
     if (panels !== actualPanels) {
-      console.log(`指定されたコマ数(${panels})が範囲外のため、${actualPanels}コマに調整されました`);
+      console.log(`[${requestId}] 指定されたコマ数(${panels})が範囲外のため、${actualPanels}コマに調整されました`);
     }
 
-    console.log('漫画生成処理を開始します...');
-    console.log(`プロンプト: ${prompt}`);
-    console.log(`コマ数: ${actualPanels}`);
-    console.log(`スタイル: ${style}`);
+    console.log(`[${requestId}] 漫画生成処理を開始します`);
+    console.log(`[${requestId}] プロンプト: ${prompt}`);
+    console.log(`[${requestId}] コマ数: ${actualPanels}`);
+    console.log(`[${requestId}] スタイル: ${style}`);
+    
+    // 処理開始時間を記録
+    const startTime = Date.now();
     
     // まずセリフを生成
-    console.log('1. セリフ生成を開始...');
-    const dialogues = await generateDialogues(prompt, actualPanels);
-    console.log('セリフ生成完了:', dialogues);
-    
-    // 日本語プロンプトを英語に翻訳したい場合はここでAPIを呼び出す
-    // const translatedPrompt = await translateToEnglish(prompt);
+    console.log(`[${requestId}] 1. セリフ生成を開始...`);
+    let dialogues;
+    try {
+      dialogues = await generateDialogues(prompt, actualPanels);
+      console.log(`[${requestId}] セリフ生成完了: ${JSON.stringify(dialogues)}`);
+    } catch (dialogueError) {
+      console.error(`[${requestId}] セリフ生成中にエラーが発生しました`, dialogueError);
+      throw new Error(`セリフ生成エラー: ${dialogueError instanceof Error ? dialogueError.message : '不明なエラー'}`);
+    }
     
     // 各コマの画像生成プロンプトを作成
     const generatePanelPrompt = (index: number, basePrompt: string) => {
@@ -67,25 +81,33 @@ export async function POST(req: NextRequest) {
     };
     
     // 画像生成
-    console.log('2. 画像生成を開始...');
+    console.log(`[${requestId}] 2. 画像生成を開始...`);
     const imagePromises = Array.from({ length: actualPanels }, async (_, i) => {
       const panelPrompt = generatePanelPrompt(i, prompt);
-      console.log(`コマ${i+1}の画像生成プロンプト:`, panelPrompt.substring(0, 100) + '...');
+      console.log(`[${requestId}] コマ${i+1}の画像生成プロンプト:`, panelPrompt);
       
       try {
         const imageUrl = await generateImage(panelPrompt, { 
           quality: style === 'simple' ? 'standard' : 'hd',
         });
-        console.log(`コマ${i+1}の画像生成完了:`, imageUrl.substring(0, 50) + '...');
+        console.log(`[${requestId}] コマ${i+1}の画像生成完了:`, imageUrl.substring(0, 100) + '...');
         return imageUrl;
       } catch (error) {
-        console.error(`コマ${i+1}の画像生成エラー:`, error);
+        console.error(`[${requestId}] コマ${i+1}の画像生成エラー:`, error);
         return `https://placehold.co/600x400?text=コマ${i+1}生成エラー`;
       }
     });
     
-    const imageUrls = await Promise.all(imagePromises);
-    console.log('全ての画像生成が完了しました');
+    // すべての画像生成が完了するまで待機
+    console.log(`[${requestId}] すべての画像生成を待機中...`);
+    let imageUrls;
+    try {
+      imageUrls = await Promise.all(imagePromises);
+      console.log(`[${requestId}] 全ての画像生成が完了しました`);
+    } catch (imageError) {
+      console.error(`[${requestId}] 画像生成中に予期せぬエラーが発生しました`, imageError);
+      throw new Error(`画像生成エラー: ${imageError instanceof Error ? imageError.message : '不明なエラー'}`);
+    }
     
     // 結果をまとめる
     const generatedContent = Array.from({ length: actualPanels }, (_, i) => {
@@ -96,23 +118,42 @@ export async function POST(req: NextRequest) {
       };
     });
     
-    console.log(`${actualPanels}コマの漫画とセリフを生成しました`);
+    // 処理完了時間を計算
+    const totalTime = Date.now() - startTime;
+    console.log(`[${requestId}] 漫画生成完了: ${actualPanels}コマ, 所要時間: ${totalTime}ms`);
     
-    return NextResponse.json({ 
+    // レスポンスを返す
+    const response = { 
       success: true,
       content: generatedContent,
       panelCount: actualPanels,
       prompt,
       style,
+      processingTime: totalTime,
       message: `${actualPanels}コマのイラストとセリフが正常に生成されました`
-    });
+    };
+    
+    console.log(`[${requestId}] 漫画生成API呼び出し完了`);
+    return NextResponse.json(response);
     
   } catch (error) {
-    console.error('漫画生成エラー:', error);
+    console.error(`[${requestId}] 漫画生成中に致命的なエラーが発生しました:`, error);
+    
+    // エラーメッセージの詳細を取得
+    let errorMessage = '漫画生成中にエラーが発生しました';
+    let errorDetails = '未知のエラー';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = error.stack || '詳細なスタック情報がありません';
+    }
+    
+    // エラーレスポンスを返す
     return NextResponse.json(
       { 
-        error: '漫画生成中にエラーが発生しました', 
-        details: error instanceof Error ? error.message : '未知のエラー' 
+        error: errorMessage, 
+        details: errorDetails,
+        requestId
       },
       { status: 500 }
     );

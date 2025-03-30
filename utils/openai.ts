@@ -18,6 +18,7 @@ export async function generateText(
     // 環境変数からAPIキーを取得
     const apiKey = openaiConfig.apiKey;
     if (!apiKey) {
+      console.error('[テキスト生成エラー] APIキーが設定されていません');
       throw new Error('OpenAI APIキーが設定されていません');
     }
 
@@ -26,8 +27,16 @@ export async function generateText(
     const maxTokens = options.maxTokens || openaiConfig.maxTokens;
     const temperature = options.temperature || openaiConfig.temperature;
 
-    console.log('OpenAI API呼び出し: テキスト生成', { model, prompt: prompt.substring(0, 50) + '...' });
+    console.log('[テキスト生成開始]', { 
+      model, 
+      prompt: prompt.substring(0, 50) + '...',
+      maxTokens,
+      temperature
+    });
 
+    console.log('[テキスト生成API呼び出し] リクエスト送信中...');
+    const startTime = Date.now();
+    
     // OpenAI APIを呼び出す
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -43,15 +52,25 @@ export async function generateText(
       })
     });
 
+    const elapsedTime = Date.now() - startTime;
+    console.log(`[テキスト生成API呼び出し] レスポンス受信 (${elapsedTime}ms)`);
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`OpenAI API エラー: ${error.error?.message || response.statusText}`);
+      const errorData = await response.json();
+      console.error('[テキスト生成API呼び出しエラー]', errorData);
+      throw new Error(`OpenAI API エラー: ${errorData.error?.message || response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('[テキスト生成完了]', { 
+      model: data.model,
+      usage: data.usage,
+      responseLength: data.choices[0].message.content.length
+    });
+    
     return data.choices[0].message.content;
   } catch (error) {
-    console.error('テキスト生成エラー:', error);
+    console.error('[テキスト生成エラー]', error);
     throw error;
   }
 }
@@ -74,6 +93,7 @@ export async function generateImage(
     // 環境変数からAPIキーを取得
     const apiKey = openaiConfig.apiKey;
     if (!apiKey) {
+      console.error('[画像生成エラー] APIキーが設定されていません');
       throw new Error('OpenAI APIキーが設定されていません');
     }
 
@@ -82,13 +102,16 @@ export async function generateImage(
     const quality = options.quality || imageGenerationConfig.quality;
     const size = options.size || imageGenerationConfig.size;
 
-    console.log('OpenAI API呼び出し: 画像生成', { 
+    console.log('[画像生成開始]', { 
       model, 
       prompt: prompt.substring(0, 50) + '...',
       quality,
       size
     });
 
+    console.log('[画像生成API呼び出し] リクエスト送信中...');
+    const startTime = Date.now();
+    
     // 実際のAPI呼び出し
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -105,15 +128,25 @@ export async function generateImage(
       })
     });
 
+    const elapsedTime = Date.now() - startTime;
+    console.log(`[画像生成API呼び出し] レスポンス受信 (${elapsedTime}ms)`);
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`OpenAI API エラー: ${error.error?.message || response.statusText}`);
+      const errorData = await response.json();
+      console.error('[画像生成API呼び出しエラー]', errorData);
+      throw new Error(`OpenAI API エラー: ${errorData.error?.message || response.statusText}`);
     }
 
     const data = await response.json();
-    return data.data[0].url;
+    const imageUrl = data.data[0].url;
+    console.log('[画像生成完了]', { 
+      imageUrl: imageUrl.substring(0, 100) + '...',
+      revised_prompt: data.data[0].revised_prompt?.substring(0, 100) + '...'
+    });
+    
+    return imageUrl;
   } catch (error) {
-    console.error('画像生成エラー:', error);
+    console.error('[画像生成エラー]', error);
     // エラーの場合はプレースホルダー画像を返す
     return `https://placehold.co/600x400?text=${encodeURIComponent('画像生成エラー')}`;
   }
@@ -127,7 +160,10 @@ export async function generateImage(
  */
 export async function generateDialogues(prompt: string, panelCount: number): Promise<string[][]> {
   try {
-    console.log('セリフ生成の開始...', { prompt: prompt.substring(0, 50) + '...', panelCount });
+    console.log('[セリフ生成開始]', { 
+      prompt: prompt.substring(0, 50) + '...',
+      panelCount
+    });
     
     const systemPrompt = `
       以下の説明に基づいて、${panelCount}コマの日本語の漫画のセリフを生成してください。
@@ -140,9 +176,16 @@ export async function generateDialogues(prompt: string, panelCount: number): Pro
       説明文: "${prompt}"
     `;
     
+    console.log('[セリフ生成] テキスト生成API呼び出し準備完了');
+    
     const result = await generateText(systemPrompt, { 
       temperature: 0.7, 
       maxTokens: 1000 
+    });
+    
+    console.log('[セリフ生成] APIレスポンス受信、解析開始', {
+      responseLength: result.length,
+      responsePreview: result.substring(0, 100) + '...'
     });
     
     try {
@@ -153,17 +196,27 @@ export async function generateDialogues(prompt: string, panelCount: number): Pro
         const jsonMatch = result.match(/\[\s*\[.*\]\s*\]/);
         if (jsonMatch) {
           parsedResult = jsonMatch[0];
+          console.log('[セリフ生成] JSON部分を抽出しました', {
+            extractedJson: parsedResult.substring(0, 100) + '...'
+          });
         } else {
+          console.error('[セリフ生成] JSON形式のレスポンスが見つかりませんでした', {
+            response: result
+          });
           throw new Error('JSON形式のレスポンスが見つかりません');
         }
       }
       
       const dialogues = JSON.parse(parsedResult);
-      console.log('セリフ生成完了:', dialogues);
+      console.log('[セリフ生成完了]', { dialogues });
       return dialogues;
     } catch (parseError) {
-      console.error('セリフ解析エラー:', parseError, '原文:', result);
+      console.error('[セリフ解析エラー]', parseError, {
+        responseText: result
+      });
+      
       // 解析できない場合は、簡易的な処理でセリフを抽出
+      console.log('[セリフ生成] 代替解析方法を試行...');
       const fallbackDialogues = [];
       const lines = result.split('\n').filter((line: string) => line.trim().length > 0);
       
@@ -180,15 +233,19 @@ export async function generateDialogues(prompt: string, panelCount: number): Pro
         }
       }
       
+      console.log('[セリフ生成] 代替解析完了', { fallbackDialogues });
       return fallbackDialogues;
     }
   } catch (error) {
-    console.error('セリフ生成エラー:', error);
+    console.error('[セリフ生成エラー]', error);
     // エラーの場合はデフォルトのセリフを返す
-    return Array.from({ length: panelCount }, (_, i) => {
+    const defaultDialogues = Array.from({ length: panelCount }, (_, i) => {
       if (i === 0) return ['こんにちは', '今日はこの話をします'];
       if (i === panelCount - 1) return ['これで説明は終わりです', 'ありがとうございました'];
       return [`${i+1}コマ目のセリフです`, 'なるほど、わかりやすいです'];
     });
+    
+    console.log('[セリフ生成] デフォルトセリフを使用', { defaultDialogues });
+    return defaultDialogues;
   }
 }
