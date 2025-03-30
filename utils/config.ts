@@ -18,7 +18,9 @@ const checkApiKey = () => {
   }
   
   if (apiKey.startsWith('sk-') && apiKey.length > 20) {
-    console.log('OPENAI_API_KEY: 有効なフォーマットで設定されています');
+    // APIキーの末尾6文字を表示（セキュリティのため全体は表示しない）
+    const lastSixChars = apiKey.slice(-6);
+    console.log(`OPENAI_API_KEY: 有効なフォーマットで設定されています (末尾6文字: ${lastSixChars})`);
     return apiKey;
   } else {
     console.error('警告: OPENAI_API_KEYが無効な形式です。「sk-」で始まるAPIキーを設定してください。');
@@ -56,11 +58,24 @@ export const appConfig = {
   defaultPanelCount: 4, // デフォルトのコマ数
   maxPanelCount: 6,     // 最大コマ数
   minPanelCount: 2,     // 最小コマ数
-  defaultStyle: '日本のイラスト風', // デフォルトの画像スタイル
+  defaultStyle: 'シンプルで見やすいイラスト風', // デフォルトの画像スタイル
   allowedLanguages: ['ja', 'en', 'zh', 'ko'] as const, // 対応言語
   
   // デフォルトのイラストプロンプト詳細設定
-  defaultStylePrompt: `明るく親しみやすい色合い、クリーンな線画、表情豊かで少しデフォルメされた「かわいい」キャラクター。ミニキャラ風のアニメタッチ。吹き出しは空白で、後からセリフを入れられる構成。背景はシンプルで、場面の雰囲気がわかる程度。全体的にポップで温かみのある雰囲気。`
+  defaultStylePrompt: `モノトーンに近い落ち着いた色合い、クリーンでシンプルな線画、わかりやすい表情の人物。複雑な背景や余計な装飾は避け、説明内容に集中したミニマルなイラスト。全体的に視認性を重視し、情報が伝わりやすい構図。`,
+  
+  // デフォルトの吹き出しスタイル設定
+  defaultBubbleStyle: {
+    fontFamily: "'Kosugi Maru', 'M PLUS Rounded 1c', sans-serif",
+    fontSize: 16,
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: '1rem',
+    borderColor: '#333',
+    borderWidth: 2,
+    padding: '0.5rem',
+    color: '#333'
+  }
 };
 
 // 環境変数のバリデーション

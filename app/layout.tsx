@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'ナビゲーションイラスト生成ツール',
-  description: 'GPT-4oを使用したナビゲーションイラストの自動生成ツール',
+  description: '簡単な説明からセリフ付きのイラストを生成するツール',
 };
 
 export default function RootLayout({
@@ -18,6 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet" />
+      </head>
       <body className={inter.className}>
         <div className="min-h-screen flex flex-col bg-gray-50">
           <Navigation />
