@@ -352,10 +352,10 @@ export async function composePanelsIntoComic(
 }
 
 /**
- * 1枚の画像内に複数コマのレイアウトを持つイラストを生成する関数（セリフなし）
- * @param prompt ユーザーのプロンプト
- * @param dialogues セリフの配列（セリフなしで吹き出しのみ生成するため参照のみ）
- * @param options 画像生成オプション
+ * 複数コマの漫画イラストを生成する関数
+ * @param prompt プロンプト
+ * @param dialogues 対話テキストの配列
+ * @param options オプション
  * @returns 生成された画像のURL
  */
 export async function generateMultiPanelComic(
@@ -367,34 +367,62 @@ export async function generateMultiPanelComic(
     size?: string;
     style?: string;
     language?: SupportedLanguage;
+    noBubbles?: boolean; // 吹き出しを含めないオプションを追加
+    noText?: boolean;    // テキストを含めないオプションを追加
   } = {}
 ) {
   try {
-    // 対話の数に基づいて適切なコマ数を決定
+    // パネル数の設定
     const panelCount = dialogues.length;
-    // 言語設定（デフォルトは日本語）
-    const language = options.language || 'ja';
     
-    console.log('[マルチパネルイラスト生成開始]', { 
+    // オプションの設定
+    const style = options.style || APP_CONFIG.STYLE.DEFAULT;
+    const language = options.language || 'ja';
+    const noBubbles = options.noBubbles || true;  // デフォルトで吹き出しを含めない
+    const noText = options.noText || true;        // デフォルトでテキストを含めない
+    
+    console.log('[複数コマイラスト生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
       panelCount,
-      dialoguesCount: dialogues.length,
-      language
+      style,
+      language,
+      noBubbles,
+      noText
     });
     
-    // 各コマの内容をまとめた説明を作成
-    const panelDescriptions = dialogues.map((panelDialogues, index) => {
-      const panelNum = index + 1;
-      const dialogueContext = panelDialogues.join('、');
-      return `コマ${panelNum}: 「${dialogueContext}」という会話`;
-    }).join('\n');
+    // パネルの説明を生成
+    let panelDescriptions = '';
+    for (let i = 0; i < dialogues.length; i++) {
+      // 各パネルの説明をインデックス付きで追加
+      panelDescriptions += `${i + 1}コマ目: `;
+      
+      // コマごとのアクションや場面を推測
+      if (i === 0) {
+        panelDescriptions += '導入シーン。最初の状況や問題提起。';
+      } else if (i === dialogues.length - 1) {
+        panelDescriptions += '結論シーン。問題解決や締めくくり。';
+      } else {
+        panelDescriptions += `展開シーン ${i}。状況の進展や変化。`;
+      }
+      
+      // セリフから状況を推測（セリフがある場合）
+      if (dialogues[i].length > 0 && dialogues[i][0]) {
+        panelDescriptions += ` 会話や表情から「${dialogues[i][0]}」という内容が伝わるようなシーン。`;
+      }
+      
+      // 次のパネルとの区切り
+      panelDescriptions += '\n';
+    }
     
-    // スタイル設定
-    const style = options.style || APP_CONFIG.STYLE.DEFAULT;
-    const stylePrompt = APP_CONFIG.STYLE.PROMPTS.DEFAULT;
+    // スタイルのプロンプトを取得
+    const styleId = Object.keys(APP_CONFIG.STYLE.PROMPTS).find(
+      key => APP_CONFIG.STYLE.PROMPTS[key].includes(style)
+    ) || 'DEFAULT';
     
-    // プロンプトテンプレートを使用
-    const enhancedPrompt = PROMPT_TEMPLATES.GENERATE_MULTI_PANEL_COMIC(
+    const stylePrompt = APP_CONFIG.STYLE.PROMPTS[styleId];
+    
+    // 生成プロンプトの構築
+    const generationPrompt = PROMPT_TEMPLATES.GENERATE_MULTI_PANEL_COMIC(
       prompt,
       panelCount,
       panelDescriptions,
@@ -403,19 +431,26 @@ export async function generateMultiPanelComic(
       language
     );
     
-    console.log('[マルチパネルイラスト] 生成プロンプト:', enhancedPrompt);
-    
-    // 画像サイズを調整（複数コマを含むためより大きく）
-    const size = API_CONFIG.IMAGE.DEFAULT_SIZE;
-    
-    return await generateImage(enhancedPrompt, {
-      ...options,
-      size
+    console.log('[複数コマイラスト生成] プロンプト生成完了', {
+      promptLength: generationPrompt.length,
+      promptPreview: generationPrompt.substring(0, 200) + '...'
     });
+    
+    // 画像生成APIを呼び出し
+    const imageUrl = await generateImage(generationPrompt, {
+      model: options.model || imageGenerationConfig.model,
+      quality: options.quality || imageGenerationConfig.quality,
+      size: options.size || imageGenerationConfig.size
+    });
+    
+    console.log('[複数コマイラスト生成完了]', {
+      imageUrl: imageUrl.substring(0, 100) + '...'
+    });
+    
+    return imageUrl;
   } catch (error) {
-    console.error('[マルチパネルイラスト生成エラー]', error);
-    // エラーの場合はプレースホルダー画像を返す
-    return `https://placehold.co/1024x1024?text=${encodeURIComponent('イラスト生成エラー')}`;
+    console.error('[複数コマイラスト生成エラー]', error);
+    throw error;
   }
 }
 

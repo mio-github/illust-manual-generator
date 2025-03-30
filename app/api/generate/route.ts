@@ -121,11 +121,13 @@ export async function POST(req: NextRequest) {
     // 処理時間計測開始
     const genStartTime = Date.now();
     
-    // セリフなしで複数コマのイラストを生成
+    // セリフなしで複数コマのイラストを生成（特別にセリフと吹き出しを含めないように指定）
     const imageUrl = await generateMultiPanelComic(prompt, dialogues, {
       quality: 'hd',
       style: style,
-      language: validLang
+      language: validLang,
+      noBubbles: true, // 吹き出しを表示しないフラグを追加
+      noText: true     // テキストを表示しないフラグを追加
     });
     
     // 処理時間計測終了
@@ -143,7 +145,9 @@ export async function POST(req: NextRequest) {
       panelCount: dialogues.length,
       language: validLang,
       generatedAt: new Date().toISOString(),
-      elapsedTime: totalElapsedTime
+      elapsedTime: totalElapsedTime,
+      editable: true,  // GUIで編集可能なフラグを追加
+      bubblePositions: [] // 初期の吹き出し位置（空配列）を追加
     });
   } catch (error) {
     console.error('イラスト生成エラー:', error);
