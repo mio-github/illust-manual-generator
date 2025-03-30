@@ -79,7 +79,7 @@ export default function Footer() {
         </div>
         
         <div className="mt-8 border-t border-gray-200 pt-6 text-sm text-gray-600">
-          <p>© 2024 ナビゲーションイラスト生成ツール. All rights reserved.</p>
+          <p>© 2025 Mio System Co.,Ltd. All rights reserved.</p>
         </div>
       </div>
     </footer>
