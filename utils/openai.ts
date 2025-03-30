@@ -416,8 +416,12 @@ export async function generateMultiPanelComic(
     
     // スタイルのプロンプトを取得
     const styleId = Object.keys(APP_CONFIG.STYLE.PROMPTS).find(
-      key => APP_CONFIG.STYLE.PROMPTS[key].includes(style)
-    ) || 'DEFAULT';
+      key => {
+        // keyをスタイル定義の型にキャスト
+        const typedKey = key as keyof typeof APP_CONFIG.STYLE.PROMPTS;
+        return APP_CONFIG.STYLE.PROMPTS[typedKey].includes(style);
+      }
+    ) as keyof typeof APP_CONFIG.STYLE.PROMPTS || 'DEFAULT';
     
     const stylePrompt = APP_CONFIG.STYLE.PROMPTS[styleId];
     

@@ -142,8 +142,8 @@ footer {
 /* 吹き出しスタイル */
 .bubble-anime {
   position: relative;
+  border: 2px solid #333;
   border-radius: 1rem;
-  border-color: #333;
   background-color: rgba(255, 255, 255, 0.95);
 }
 
@@ -172,22 +172,21 @@ footer {
 }
 
 .bubble-round {
+  border: 2px solid #333;
   border-radius: 2rem;
-  border-color: #333;
   background-color: rgba(255, 255, 255, 0.95);
 }
 
 .bubble-cloud {
+  border: 2px solid #333;
   border-radius: 1.5rem 1.5rem 1.5rem 0;
-  border-color: #333;
   background-color: rgba(255, 255, 255, 0.95);
 }
 
 .bubble-think {
   position: relative;
+  border: 2px dotted #333;
   border-radius: 1rem;
-  border-style: dotted;
-  border-color: #333;
   background-color: rgba(255, 255, 255, 0.95);
 }
 
@@ -199,7 +198,7 @@ footer {
   width: 10px;
   height: 10px;
   background-color: white;
-  border: 2px solid #333;
+  border: 2px dotted #333;
   border-radius: 50%;
 }
 
@@ -211,16 +210,15 @@ footer {
   width: 5px;
   height: 5px;
   background-color: white;
-  border: 2px solid #333;
+  border: 2px dotted #333;
   border-radius: 50%;
 }
 
 .bubble-shout {
+  border: 2px solid #333;
   border-radius: 0.25rem;
-  border-color: #333;
   transform: skewX(-5deg);
   background-color: rgba(255, 255, 255, 0.95);
-  clip-path: polygon(0% 0%, 100% 0%, 90% 70%, 100% 100%, 0% 100%);
 }
 
 /* セリフ編集のスタイル */
@@ -248,5 +246,6 @@ footer {
   width: 100% !important;
   height: auto !important;
   object-fit: contain !important;
+  display: block !important;
   position: relative !important;
 } 

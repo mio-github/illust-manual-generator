@@ -389,7 +389,7 @@ function DraggableBubble({
       // onUpdateを呼び出して位置を反映（直接DOMを操作しない）
       onUpdate(index, updatedStyle);
     }
-  }, [transform?.x, transform?.y, bubble.x, bubble.y, index, onUpdate]);
+  }, [bubble.x, bubble.y, index, onUpdate, transform]);
   
   return (
     <BubbleContextMenu
@@ -830,7 +830,9 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       alert('画像のダウンロードに失敗しました。もう一度お試しください。');
       
       // エラー時も元に戻す
-      comicRef.current.classList.remove('exporting');
+      if (comicRef.current) {
+        comicRef.current.classList.remove('exporting');
+      }
       setEditMode(true);
     }
   };
