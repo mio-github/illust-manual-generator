@@ -3,20 +3,47 @@
  * 環境変数から値を読み込み、デフォルト値を提供します
  */
 
-// OpenAI LLM設定
+import 'server-only';
+
+// 環境変数から設定を読み込む
+const checkApiKey = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    console.error('警告: OPENAI_API_KEYが設定されていません。');
+    return undefined;
+  }
+  
+  if (apiKey.startsWith('sk-') && apiKey.length > 20) {
+    console.log('OPENAI_API_KEY: 有効なフォーマットで設定されています');
+    return apiKey;
+  } else {
+    console.error('警告: OPENAI_API_KEYが無効な形式です。「sk-」で始まるAPIキーを設定してください。');
+    return apiKey; // 一応返します
+  }
+};
+
+// OpenAI関連設定
 export const openaiConfig = {
-  apiKey: process.env.OPENAI_API_KEY || '',
-  model: process.env.OPENAI_MODEL || 'gpt-4o',
-  maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '1000', 10),
+  apiKey: checkApiKey(),
+  model: process.env.OPENAI_MODEL || 'gpt-4o', // デフォルトはGPT-4o
+  maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '1000'),
   temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.7'),
 };
 
-// 画像生成設定
+// 環境変数の設定状況をログ出力
+console.log('OpenAI設定情報:', {
+  model: openaiConfig.model,
+  maxTokens: openaiConfig.maxTokens,
+  temperature: openaiConfig.temperature,
+  apiKeyConfigured: openaiConfig.apiKey ? '設定済み' : '未設定'
+});
+
+// 画像生成関連設定
 export const imageGenerationConfig = {
-  api: process.env.IMAGE_GENERATION_API || 'openai',
-  model: process.env.IMAGE_GENERATION_MODEL || 'dall-e-3',
-  quality: process.env.IMAGE_QUALITY || 'standard',
-  size: process.env.IMAGE_SIZE || '1024x1024',
+  model: process.env.OPENAI_IMAGE_MODEL || 'dall-e-3',
+  quality: process.env.OPENAI_IMAGE_QUALITY || 'standard', // standard or hd
+  size: process.env.OPENAI_IMAGE_SIZE || '1024x1024', // 1024x1024, 1024x1792, or 1792x1024
 };
 
 // アプリケーション全般設定

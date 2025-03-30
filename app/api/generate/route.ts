@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const requestId = Math.random().toString(36).substring(2, 10);
   
   try {
-    console.log(`[${requestId}] 漫画生成API呼び出し開始`);
+    console.log(`[${requestId}] イラスト生成API呼び出し開始`);
     
     // リクエストボディを取得
     const body = await req.json();
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       console.log(`[${requestId}] 指定されたコマ数(${panels})が範囲外のため、${actualPanels}コマに調整されました`);
     }
 
-    console.log(`[${requestId}] 漫画生成処理を開始します`);
+    console.log(`[${requestId}] イラスト生成処理を開始します`);
     console.log(`[${requestId}] プロンプト: ${prompt}`);
     console.log(`[${requestId}] コマ数: ${actualPanels}`);
     console.log(`[${requestId}] スタイル: ${style}`);
@@ -81,39 +81,36 @@ export async function POST(req: NextRequest) {
       throw new Error(`セリフ生成エラー: ${dialogueError instanceof Error ? dialogueError.message : '不明なエラー'}`);
     }
     
-    // 3. 漫画画像の生成（セリフあり/なし）
-    console.log(`[${requestId}] 3. 漫画画像の生成を開始...`);
-    let comicImageUrl;
+    // 3. イラスト画像の生成（セリフあり/なし）
+    console.log(`[${requestId}] 3. イラスト画像の生成を開始...`);
+    let comicImageUrl: string;
+
     try {
       if (withText) {
-        // セリフ付きの漫画を生成
+        // セリフ付きのイラストを生成
+        console.log(`[${requestId}] セリフ付きイラスト生成を開始...`);
         comicImageUrl = await generateMultiPanelComicWithText(
-          prompt, 
-          actualPanels, 
-          dialogues, 
-          validLang,
-          {
-            quality: style === 'simple' ? 'standard' : 'hd',
-            style
-          }
-        );
-        console.log(`[${requestId}] セリフ付き漫画生成完了:`, comicImageUrl.substring(0, 100) + '...');
-      } else {
-        // セリフなしの漫画を生成（吹き出しのみ）
-        comicImageUrl = await generateMultiPanelComic(
-          prompt, 
-          actualPanels, 
+          prompt,
+          actualPanels,
           dialogues,
-          {
-            quality: style === 'simple' ? 'standard' : 'hd',
-            style
-          }
+          validLang,
+          { style }
         );
-        console.log(`[${requestId}] セリフなし漫画生成完了:`, comicImageUrl.substring(0, 100) + '...');
+        console.log(`[${requestId}] セリフ付きイラスト生成完了:`, comicImageUrl.substring(0, 100) + '...');
+      } else {
+        // セリフなしのイラストを生成（吹き出しのみ）
+        console.log(`[${requestId}] 吹き出し付きイラスト生成を開始...`);
+        comicImageUrl = await generateMultiPanelComic(
+          prompt,
+          actualPanels,
+          dialogues,
+          { style }
+        );
+        console.log(`[${requestId}] 吹き出し付きイラスト生成完了:`, comicImageUrl.substring(0, 100) + '...');
       }
     } catch (imageError) {
-      console.error(`[${requestId}] 漫画生成中にエラーが発生しました`, imageError);
-      throw new Error(`漫画生成エラー: ${imageError instanceof Error ? imageError.message : '不明なエラー'}`);
+      console.error(`[${requestId}] イラスト生成中にエラーが発生しました`, imageError);
+      throw new Error(`イラスト生成エラー: ${imageError instanceof Error ? imageError.message : '不明なエラー'}`);
     }
     
     // 結果をまとめる
@@ -129,7 +126,7 @@ export async function POST(req: NextRequest) {
     
     // 処理完了時間を計算
     const totalTime = Date.now() - startTime;
-    console.log(`[${requestId}] 漫画生成完了: ${actualPanels}コマ, 所要時間: ${totalTime}ms`);
+    console.log(`[${requestId}] イラスト生成完了: ${actualPanels}コマ, 所要時間: ${totalTime}ms`);
     
     // レスポンスを返す
     const response = { 
@@ -142,17 +139,17 @@ export async function POST(req: NextRequest) {
       withText,
       processingTime: totalTime,
       panelDialogues: dialogues, // 各コマごとのセリフも返す
-      message: `${actualPanels}コマの漫画が1枚の画像として生成されました。言語: ${validLang}, セリフ: ${withText ? 'あり' : 'なし'}`
+      message: `${actualPanels}コマのイラストが1枚の画像として生成されました。言語: ${validLang}, セリフ: ${withText ? 'あり' : 'なし'}`
     };
     
-    console.log(`[${requestId}] 漫画生成API呼び出し完了`);
+    console.log(`[${requestId}] イラスト生成API呼び出し完了`);
     return NextResponse.json(response);
     
   } catch (error) {
-    console.error(`[${requestId}] 漫画生成中に致命的なエラーが発生しました:`, error);
+    console.error(`[${requestId}] イラスト生成中に致命的なエラーが発生しました:`, error);
     
     // エラーメッセージの詳細を取得
-    let errorMessage = '漫画生成中にエラーが発生しました';
+    let errorMessage = 'イラスト生成中にエラーが発生しました';
     let errorDetails = '未知のエラー';
     
     if (error instanceof Error) {

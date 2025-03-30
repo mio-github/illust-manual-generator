@@ -111,9 +111,8 @@ function DraggableBubble({
     fontFamily: bubble.fontFamily || 'sans-serif'
   };
   
-  const handleDragEnd = (x: number, y: number) => {
-    onUpdate(index, x, y);
-  };
+  // 実際のドラッグエンド時の処理はDndContextのイベントハンドラから呼び出される
+  // ここではtransformの変更に基づいた更新は行わない
   
   return (
     <div
@@ -213,41 +212,126 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   const [savedProjects, setSavedProjects] = useState<ComicProject[]>([]);
   const [showProjectModal, setShowProjectModal] = useState(false);
   
-  // 編集モードの初期化
+  // 編集モードの初期化を改善
   useEffect(() => {
     if (isMultiPanelComic) {
-      // 初期吹き出し位置をデフォルト設定
-      const initialBubbles: BubblePosition[] = [];
-      dialogues.flat().forEach((text, i) => {
-        initialBubbles.push({
-          x: 100 + (i % 2) * 150,
-          y: 100 + Math.floor(i / 2) * 100,
-          width: 120,
-          height: 40,
-          text,
-          fontSize: 14,
-          color: '#000000',
-          writing: 'horizontal',
-          fontFamily: 'sans-serif'
-        });
-      });
-      setBubblePositions(initialBubbles);
-    }
-    
-    // 保存済みプロジェクトを読み込む
-    const loadSavedProjects = () => {
-      try {
-        const savedData = localStorage.getItem('comicProjects');
-        if (savedData) {
-          setSavedProjects(JSON.parse(savedData));
+      // 画像のロードを待ってからバブル位置を計算
+      const calculateBubblePositions = async () => {
+        if (imageRef.current) {
+          try {
+            // 画像サイズを取得
+            const imgWidth = imageRef.current.width || 1024;
+            const imgHeight = imageRef.current.height || 1024;
+            
+            // コマのおおよその配置を推測
+            // 4コマなら2x2、6コマなら3x2などの配置を想定
+            const cols = panelCount <= 4 ? 2 : 3;
+            const rows = Math.ceil(panelCount / cols);
+            
+            // 各コマのサイズを計算
+            const panelWidth = imgWidth / cols;
+            const panelHeight = imgHeight / rows;
+            
+            // 初期吹き出し位置をデフォルト設定
+            const initialBubbles: BubblePosition[] = [];
+            dialogues.forEach((panelDialogues, panelIndex) => {
+              // コマの行と列を計算
+              const col = panelIndex % cols;
+              const row = Math.floor(panelIndex / cols);
+              
+              // コマの左上座標
+              const panelLeft = col * panelWidth;
+              const panelTop = row * panelHeight;
+              
+              // コマの中央付近
+              const panelCenterX = panelLeft + panelWidth / 2;
+              const panelCenterY = panelTop + panelHeight / 2;
+              
+              // 吹き出しを配置
+              panelDialogues.forEach((text, bubbleIndex) => {
+                // 複数の吹き出しがある場合は少しずらして配置
+                const offsetX = bubbleIndex % 2 === 0 ? -80 : 80;
+                const offsetY = bubbleIndex > 1 ? 80 : 0;
+                
+                initialBubbles.push({
+                  x: panelCenterX + offsetX - 60, // 吹き出しの幅の半分を引いて中央に
+                  y: panelCenterY + offsetY - 20, // 吹き出しの高さの半分を引いて中央に
+                  width: 120,
+                  height: text.length > 20 ? 60 : 40, // テキスト長に応じてサイズ調整
+                  text,
+                  fontSize: 14,
+                  color: '#000000',
+                  writing: 'horizontal',
+                  fontFamily: 'sans-serif'
+                });
+              });
+            });
+            
+            setBubblePositions(initialBubbles);
+          } catch (error) {
+            console.error('吹き出し位置の初期化に失敗しました', error);
+            // エラー時はデフォルトの位置設定をフォールバックとして使用
+            const defaultBubbles: BubblePosition[] = [];
+            dialogues.flat().forEach((text, i) => {
+              defaultBubbles.push({
+                x: 100 + (i % 2) * 150,
+                y: 100 + Math.floor(i / 2) * 100,
+                width: 120,
+                height: 40,
+                text,
+                fontSize: 14,
+                color: '#000000',
+                writing: 'horizontal',
+                fontFamily: 'sans-serif'
+              });
+            });
+            setBubblePositions(defaultBubbles);
+          }
         }
-      } catch (e) {
-        console.error('プロジェクトの読み込みに失敗しました', e);
+      };
+      
+      // 画像ロード後に吹き出し位置を計算
+      const img = imageRef.current;
+      if (img) {
+        if (img.complete) {
+          calculateBubblePositions();
+        } else {
+          img.onload = calculateBubblePositions;
+        }
+      } else {
+        // イメージ要素がない場合はデフォルト位置を使用
+        const defaultBubbles: BubblePosition[] = [];
+        dialogues.flat().forEach((text, i) => {
+          defaultBubbles.push({
+            x: 100 + (i % 2) * 150,
+            y: 100 + Math.floor(i / 2) * 100,
+            width: 120,
+            height: 40,
+            text,
+            fontSize: 14,
+            color: '#000000',
+            writing: 'horizontal',
+            fontFamily: 'sans-serif'
+          });
+        });
+        setBubblePositions(defaultBubbles);
       }
-    };
-    
-    loadSavedProjects();
-  }, [isMultiPanelComic, dialogues]);
+      
+      // 保存済みプロジェクトを読み込む
+      const loadSavedProjects = () => {
+        try {
+          const savedData = localStorage.getItem('comicProjects');
+          if (savedData) {
+            setSavedProjects(JSON.parse(savedData));
+          }
+        } catch (e) {
+          console.error('プロジェクトの読み込みに失敗しました', e);
+        }
+      };
+      
+      loadSavedProjects();
+    }
+  }, [isMultiPanelComic, dialogues, panelCount]);
   
   const handleTextChange = (index: number, text: string) => {
     const newTexts = [...panelTexts];
@@ -342,6 +426,15 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       
       // 少し待ってからキャプチャ（ステート更新後にレンダリングされるのを待つ）
       setTimeout(async () => {
+        // 画像が完全に読み込まれていることを確認
+        if (imageRef.current && !imageRef.current.complete) {
+          await new Promise(resolve => {
+            if (imageRef.current) {
+              imageRef.current.onload = resolve;
+            }
+          });
+        }
+        
         // HTMLを画像としてキャプチャ
         const canvas = await html2canvas(comicRef.current!, {
           allowTaint: true,
@@ -351,8 +444,13 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
           // UI要素は除外
           ignoreElements: (element) => {
             return element.classList.contains('ui-control') || 
-                   element.classList.contains('bubble-controls');
-          }
+                  element.classList.contains('bubble-controls');
+          },
+          // 全体を確実に含めるための設定
+          width: comicRef.current!.scrollWidth,
+          height: comicRef.current!.scrollHeight,
+          windowWidth: comicRef.current!.scrollWidth,
+          windowHeight: comicRef.current!.scrollHeight
         });
         
         // Canvas to Blob

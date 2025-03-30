@@ -411,7 +411,7 @@ export async function composePanelsIntoComic(
 }
 
 /**
- * 1枚の画像内に複数コマのレイアウトを持つ漫画を生成する関数（セリフなし）
+ * 1枚の画像内に複数コマのレイアウトを持つイラストを生成する関数（セリフなし）
  * @param prompt ユーザーのプロンプト
  * @param panelCount コマ数
  * @param dialogues セリフの配列（セリフなしで吹き出しのみ生成するため参照のみ）
@@ -430,7 +430,7 @@ export async function generateMultiPanelComic(
   } = {}
 ) {
   try {
-    console.log('[マルチパネル漫画生成開始]', { 
+    console.log('[マルチパネルイラスト生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
       panelCount,
       dialoguesCount: dialogues.length
@@ -447,18 +447,19 @@ export async function generateMultiPanelComic(
     const enhancedPrompt = `
       ${prompt} について、${panelCount}コマのナビゲーションイラストレイアウトを作成してください。
       
-      【重要な指示】
+      【重要な指示 - 必ず守ってください】
       - 1枚の画像の中に${panelCount}コマのナビゲーションイラストレイアウトを作成してください
       - 各コマは明確に区切られ、順番がわかるようにしてください
-      - 各コマには吹き出しを含めますが、吹き出しの中は空白にしてください（セリフは入れないでください）
-      - 日本語漫画のスタイルで、読みやすい構図にしてください
+      - 各コマには必ず空の吹き出しを含めてください（セリフは入れないでください）
+      - 吹き出しは会話の流れが予想できる適切な位置に配置してください
+      - 各コマには最低1つ、状況に応じて2〜3つの吹き出しを適切に配置してください
+      - 吹き出しは中が空白で、後からテキストを入れられるように十分なスペースを確保してください
+      - ${options.style || '日本のイラスト風'}のスタイルで、読みやすい構図にしてください
       - 各コマの内容は以下の通りです：
       ${panelDescriptions}
-      
-      スタイル: ${options.style || 'シンプルで見やすいナビゲーションイラスト'}
     `.trim();
     
-    console.log('[マルチパネル漫画] 生成プロンプト:', enhancedPrompt);
+    console.log('[マルチパネルイラスト] 生成プロンプト:', enhancedPrompt);
     
     // 画像サイズを調整（複数コマを含むためより大きく）
     const size = '1024x1024'; // 正方形で大きめのサイズを指定
@@ -468,9 +469,9 @@ export async function generateMultiPanelComic(
       size
     });
   } catch (error) {
-    console.error('[マルチパネル漫画生成エラー]', error);
+    console.error('[マルチパネルイラスト生成エラー]', error);
     // エラーの場合はプレースホルダー画像を返す
-    return `https://placehold.co/1024x1024?text=${encodeURIComponent('漫画生成エラー')}`;
+    return `https://placehold.co/1024x1024?text=${encodeURIComponent('イラスト生成エラー')}`;
   }
 }
 
