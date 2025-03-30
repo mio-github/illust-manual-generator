@@ -115,8 +115,8 @@ footer {
 }
 
 .exporting .bubble-editor {
-  border: none !important;
-  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: transparent !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
 }
 
 .exporting .ui-control {
@@ -142,8 +142,8 @@ footer {
 /* 吹き出しスタイル */
 .bubble-anime {
   position: relative;
-  border: 2px solid #333;
   border-radius: 1rem;
+  border-color: #333;
   background-color: rgba(255, 255, 255, 0.95);
 }
 
@@ -172,21 +172,22 @@ footer {
 }
 
 .bubble-round {
-  border: 2px solid #333;
   border-radius: 2rem;
+  border-color: #333;
   background-color: rgba(255, 255, 255, 0.95);
 }
 
 .bubble-cloud {
-  border: 2px solid #333;
-  border-radius: 50% 50% 50% 20%;
+  border-radius: 1.5rem 1.5rem 1.5rem 0;
+  border-color: #333;
   background-color: rgba(255, 255, 255, 0.95);
 }
 
 .bubble-think {
   position: relative;
-  border: 2px solid #333;
-  border-radius: 2rem;
+  border-radius: 1rem;
+  border-style: dotted;
+  border-color: #333;
   background-color: rgba(255, 255, 255, 0.95);
 }
 
@@ -215,7 +216,9 @@ footer {
 }
 
 .bubble-shout {
-  border: 2px solid #333;
+  border-radius: 0.25rem;
+  border-color: #333;
+  transform: skewX(-5deg);
   background-color: rgba(255, 255, 255, 0.95);
   clip-path: polygon(0% 0%, 100% 0%, 90% 70%, 100% 100%, 0% 100%);
 }
@@ -231,4 +234,19 @@ footer {
 .bubble-text-editor:focus {
   outline: none;
   border: none;
+}
+
+/* イメージ出力時のコンテナスタイル */
+.exporting {
+  position: relative !important;
+  overflow: visible !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+.exporting .comic-image {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  position: relative !important;
 } 

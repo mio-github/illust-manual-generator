@@ -746,6 +746,9 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       const originalWidth = imageRef.current?.naturalWidth || 1024;
       const originalHeight = imageRef.current?.naturalHeight || 1024;
       
+      // 画像の実際のサイズを取得
+      const imgRect = imageRef.current?.getBoundingClientRect();
+      
       // 出力用に吹き出しのスタイルを一時的に適用
       // 現在のセリフ設定を取得して反映
       const bubbleElements = comicRef.current.querySelectorAll('.bubble-editor');
@@ -762,6 +765,8 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
           if (bubbleStyle.bubbleStyle) {
             (bubble as HTMLElement).classList.add(`bubble-${bubbleStyle.bubbleStyle}`);
           }
+          // 境界線を透明に
+          (bubble as HTMLElement).style.borderColor = 'transparent';
         }
       });
       
@@ -769,14 +774,25 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       const canvas = await html2canvas(comicRef.current, {
         backgroundColor: null,
         scale: 2,
-        width: comicRef.current.clientWidth,
-        height: comicRef.current.clientHeight,
+        useCORS: true,
+        allowTaint: true,
+        // 実際の表示サイズに合わせる
+        width: comicRef.current.offsetWidth,
+        height: comicRef.current.offsetHeight,
         // 元の画像の縦横比を保持
         onclone: (document, element) => {
-          // キャプチャ前に要素の縦横比を調整
+          // キャプチャ前に要素のスタイルを調整
           const clonedElement = element as HTMLElement;
-          clonedElement.style.width = `${originalWidth}px`;
-          clonedElement.style.height = `${originalHeight}px`;
+          
+          // 要素内の画像参照を取得
+          const imgElement = clonedElement.querySelector('img');
+          if (imgElement) {
+            // 画像が完全に表示されるように設定
+            imgElement.style.width = '100%';
+            imgElement.style.height = 'auto';
+            imgElement.style.objectFit = 'contain';
+            imgElement.style.display = 'block';
+          }
           
           // クローン先の吹き出しにも設定を適用
           const clonedBubbles = clonedElement.querySelectorAll('.bubble-editor');
