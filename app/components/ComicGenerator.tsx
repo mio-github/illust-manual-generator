@@ -59,6 +59,8 @@ interface ComicGeneratorProps {
     generatedAt: string;
     elapsedTime: number;
     caption?: string;
+    bubblePositions?: BubblePosition[];
+    editable?: boolean;
   };
   panelDialogues?: string[][];
 }
@@ -387,9 +389,10 @@ function DraggableBubble({
       };
       
       // onUpdateを呼び出して位置を反映（直接DOMを操作しない）
+      // 注: このuseEffectは位置変更時に頻繁に呼ばれるため、パフォーマンスに注意
       onUpdate(index, updatedStyle);
     }
-  }, [bubble.x, bubble.y, index, onUpdate, transform]);
+  }, [transform, index, onUpdate]); // 注意: 依存配列からbubble.x, bubble.yを除外して無限ループを防止
   
   return (
     <BubbleContextMenu
@@ -498,9 +501,11 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       const calculateBubblePositions = async () => {
         if (imageRef.current) {
           try {
-            // 画像サイズを取得
-            const imgWidth = imageRef.current.width || 1024;
-            const imgHeight = imageRef.current.height || 1024;
+            // 画像の自然サイズを取得（clientWidth/clientHeightではなくnaturalWidth/naturalHeightを使用）
+            const imgWidth = imageRef.current.naturalWidth || 1024;
+            const imgHeight = imageRef.current.naturalHeight || 1024;
+            
+            console.log('画像サイズ取得:', { imgWidth, imgHeight });
             
             // コマのおおよその配置を推測
             // 4コマなら2x2、6コマなら3x2などの配置を想定
@@ -511,8 +516,21 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
             const panelWidth = imgWidth / cols;
             const panelHeight = imgHeight / rows;
             
+            console.log('コマサイズ計算:', { cols, rows, panelWidth, panelHeight, panelCount });
+            
             // 初期吹き出し位置をデフォルト設定
             const initialBubbles: BubblePosition[] = [];
+            
+            // API から bubblePositions が提供されている場合はそれを使用
+            if (content?.bubblePositions && content.bubblePositions.length > 0) {
+              console.log('APIから提供された吹き出し位置を使用');
+              setBubblePositions(content.bubblePositions);
+              return;
+            }
+            
+            // APIから提供されていない場合は計算する
+            console.log('吹き出し位置を新規計算');
+            
             dialogues.forEach((panelDialogues, panelIndex) => {
               // コマの行と列を計算
               const col = panelIndex % cols;
@@ -522,12 +540,24 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
               const panelLeft = col * panelWidth;
               const panelTop = row * panelHeight;
               
-              // コマの中央付近
+              // コマの中央付近（実際の画像サイズに基づく）
               const panelCenterX = panelLeft + panelWidth / 2;
               const panelCenterY = panelTop + panelHeight / 2;
               
+              // スケール係数を計算（表示領域と実際の画像サイズの比率）
+              let scaleX = 1;
+              let scaleY = 1;
+              
+              if (imageRef.current) {
+                const displayRect = imageRef.current.getBoundingClientRect();
+                scaleX = displayRect.width / imgWidth;
+                scaleY = displayRect.height / imgHeight;
+              }
+              
               // 吹き出しを配置
               panelDialogues.forEach((text, bubbleIndex) => {
+                if (!text || text.trim() === '') return; // 空テキストの場合はスキップ
+                
                 // 複数の吹き出しがある場合は少しずらして配置
                 const offsetX = bubbleIndex % 2 === 0 ? -80 : 80;
                 const offsetY = bubbleIndex > 1 ? 80 : 0;
@@ -538,26 +568,35 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                 const bubbleWidth = Math.min(Math.max(100, textLength * 8), 200);
                 const bubbleHeight = Math.min(Math.max(40, Math.ceil(textLength / 10) * 20), 100);
                 
+                // 位置を計算（表示スケールに合わせる）
+                const x = panelCenterX * scaleX + offsetX * scaleX - (bubbleWidth * scaleX) / 2;
+                const y = panelCenterY * scaleY + offsetY * scaleY - (bubbleHeight * scaleY) / 2;
+                
                 initialBubbles.push({
-                  x: panelCenterX + offsetX - bubbleWidth / 2, // 吹き出しの幅の半分を引いて中央に
-                  y: panelCenterY + offsetY - bubbleHeight / 2, // 吹き出しの高さの半分を引いて中央に
+                  x,
+                  y,
                   width: bubbleWidth,
                   height: bubbleHeight,
                   text,
                   fontSize: 14,
                   color: '#000000',
                   writing: 'horizontal',
-                  fontFamily: 'sans-serif'
+                  fontFamily: 'sans-serif',
+                  bubbleStyle: 'anime',
+                  opacity: 0.95
                 });
               });
             });
             
+            console.log('計算された吹き出し位置:', initialBubbles);
             setBubblePositions(initialBubbles);
           } catch (error) {
             console.error('吹き出し位置の初期化に失敗しました', error);
             // エラー時はデフォルトの位置設定をフォールバックとして使用
             const defaultBubbles: BubblePosition[] = [];
             dialogues.flat().forEach((text, i) => {
+              if (!text || text.trim() === '') return; // 空テキストの場合はスキップ
+              
               defaultBubbles.push({
                 x: 100 + (i % 2) * 150,
                 y: 100 + Math.floor(i / 2) * 100,
@@ -567,26 +606,41 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
                 fontSize: 14,
                 color: '#000000',
                 writing: 'horizontal',
-                fontFamily: 'sans-serif'
+                fontFamily: 'sans-serif',
+                bubbleStyle: 'anime',
+                opacity: 0.95
               });
             });
+            console.log('フォールバック吹き出し位置:', defaultBubbles);
             setBubblePositions(defaultBubbles);
           }
         }
       };
       
-      // 画像ロード後に吹き出し位置を計算
+      // 画像ロード後に吹き出し位置を確実に計算
       const img = imageRef.current;
       if (img) {
+        // イベントリスナーを設定（既存のリスナーがある場合はクリア）
+        const handleImageLoad = () => {
+          console.log('画像ロード完了、吹き出し位置を計算');
+          // イメージの完全な読み込みを確保するため少し遅延
+          setTimeout(calculateBubblePositions, 100);
+        };
+        
         if (img.complete) {
-          calculateBubblePositions();
+          console.log('画像既にロード済み');
+          handleImageLoad();
         } else {
-          img.onload = calculateBubblePositions;
+          console.log('画像読み込み待機中...');
+          img.onload = handleImageLoad;
         }
       } else {
+        console.log('画像要素が見つかりません、デフォルト位置を使用');
         // イメージ要素がない場合はデフォルト位置を使用
         const defaultBubbles: BubblePosition[] = [];
         dialogues.flat().forEach((text, i) => {
+          if (!text || text.trim() === '') return; // 空テキストの場合はスキップ
+          
           defaultBubbles.push({
             x: 100 + (i % 2) * 150,
             y: 100 + Math.floor(i / 2) * 100,
@@ -596,9 +650,12 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
             fontSize: 14,
             color: '#000000',
             writing: 'horizontal',
-            fontFamily: 'sans-serif'
+            fontFamily: 'sans-serif',
+            bubbleStyle: 'anime',
+            opacity: 0.95
           });
         });
+        console.log('デフォルト吹き出し位置:', defaultBubbles);
         setBubblePositions(defaultBubbles);
       }
       
@@ -616,7 +673,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
       
       loadSavedProjects();
     }
-  }, [isMultiPanelComic, dialogues, panelCount]);
+  }, [isMultiPanelComic, dialogues, panelCount, content]);
   
   const handleTextChange = (index: number, text: string) => {
     console.log('テキスト変更:', index, text);
@@ -653,8 +710,35 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   
   const handleBubbleDrag = (index: number, updates: Partial<BubblePosition>) => {
     const newBubbles = [...bubblePositions];
-    newBubbles[index] = { ...newBubbles[index], ...updates };
+    
+    // 更新前の元の位置をログに出力
+    console.log(`バブル ${index} 位置更新:`, {
+      before: { x: newBubbles[index].x, y: newBubbles[index].y },
+      updates
+    });
+    
+    // 位置を更新
+    newBubbles[index] = { 
+      ...newBubbles[index], 
+      ...updates,
+      // 負の値を防止（画面外に出ないように）
+      x: Math.max(0, updates.x !== undefined ? updates.x : newBubbles[index].x),
+      y: Math.max(0, updates.y !== undefined ? updates.y : newBubbles[index].y)
+    };
+    
+    // 更新後の位置をログに出力
+    console.log(`バブル ${index} 位置更新後:`, { 
+      after: { x: newBubbles[index].x, y: newBubbles[index].y }
+    });
+    
     setBubblePositions(newBubbles);
+    
+    // 状態更新のバッチ処理を確保するため、タイムアウトを設定
+    // これによりレンダリングの過剰な発生を防止
+    clearTimeout((window as any).bubbleUpdateTimeout);
+    (window as any).bubbleUpdateTimeout = setTimeout(() => {
+      console.log('バブル位置更新完了', newBubbles);
+    }, 100);
   };
   
   const handleBubbleResize = (index: number, width: number, height: number) => {
