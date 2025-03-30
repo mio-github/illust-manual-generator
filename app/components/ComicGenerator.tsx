@@ -390,7 +390,7 @@ function DraggableBubble({
         <div 
           contentEditable 
           suppressContentEditableWarning
-          className="focus:outline-none w-full"
+          className="focus:outline-none w-full bubble-text-editor"
           style={{
             fontFamily: bubble.fontFamily || appConfig.defaultBubbleStyle.fontFamily,
             fontSize: `${bubble.fontSize || appConfig.defaultBubbleStyle.fontSize}px`,
@@ -398,10 +398,10 @@ function DraggableBubble({
             color: bubble.color || appConfig.defaultBubbleStyle.color,
             writingMode: bubble.writing === 'vertical' ? 'vertical-rl' : 'horizontal-tb'
           }}
+          onInput={(e) => onTextChange(index, e.currentTarget.textContent || '')}
           onBlur={(e) => onTextChange(index, e.currentTarget.textContent || '')}
-        >
-          {bubble.text}
-        </div>
+          dangerouslySetInnerHTML={{ __html: bubble.text }}
+        />
         
         <div 
           className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize bubble-control"
@@ -589,6 +589,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   }, [isMultiPanelComic, dialogues, panelCount]);
   
   const handleTextChange = (index: number, text: string) => {
+    console.log('テキスト変更:', index, text);
     const newTexts = [...panelTexts];
     newTexts[index] = text;
     setPanelTexts(newTexts);
@@ -634,6 +635,7 @@ export default function ComicGenerator({ content, panelDialogues }: ComicGenerat
   };
   
   const handleBubbleTextChange = (index: number, text: string) => {
+    console.log('テキスト変更:', index, text);
     const newBubbles = [...bubblePositions];
     newBubbles[index].text = text;
     setBubblePositions(newBubbles);

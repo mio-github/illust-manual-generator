@@ -91,7 +91,10 @@ export async function POST(req: NextRequest) {
       imageUrl = await generateMultiPanelComicWithText(prompt, dialogues, validLang, { style });
     } else {
       // セリフなしまたはUIで表示するモードの場合（セリフを焼き付けない）
-      imageUrl = await generateMultiPanelComic(prompt, dialogues, { style });
+      imageUrl = await generateMultiPanelComic(prompt, dialogues, { 
+        style,
+        language: validLang
+      });
     }
     
     // 結果をまとめる

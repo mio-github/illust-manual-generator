@@ -48,8 +48,8 @@ if (typeof window === 'undefined') {
 
 // 画像生成関連設定
 export const imageGenerationConfig = {
-  model: process.env.OPENAI_IMAGE_MODEL || 'dall-e-3',
-  quality: process.env.OPENAI_IMAGE_QUALITY || 'standard', // standard or hd
+  model: process.env.OPENAI_IMAGE_MODEL || 'dall-e-3', // 2024年3月時点での最新モデル
+  quality: process.env.OPENAI_IMAGE_QUALITY || 'hd', // 高品質なイラスト生成のためデフォルトをhdに変更
   size: process.env.OPENAI_IMAGE_SIZE || '1024x1024', // 1024x1024, 1024x1792, or 1792x1024
 };
 

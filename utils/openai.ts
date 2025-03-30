@@ -426,16 +426,20 @@ export async function generateMultiPanelComic(
     quality?: string;
     size?: string;
     style?: string;
+    language?: SupportedLanguage;
   } = {}
 ) {
   try {
     // 対話の数に基づいて適切なコマ数を決定
     const panelCount = dialogues.length;
+    // 言語設定（デフォルトは日本語）
+    const language = options.language || 'ja';
     
     console.log('[マルチパネルイラスト生成開始]', { 
       prompt: prompt.substring(0, 50) + '...',
       panelCount,
-      dialoguesCount: dialogues.length
+      dialoguesCount: dialogues.length,
+      language
     });
     
     // 各コマの内容をまとめた説明を作成
@@ -445,9 +449,25 @@ export async function generateMultiPanelComic(
       return `コマ${panelNum}: 「${dialogueContext}」という会話`;
     }).join('\n');
     
+    // 言語に応じたスタイル指定
+    const languageStyleText = 
+      language === 'ja' ? '日本語イラスト' : 
+      language === 'en' ? '英語のイラスト' :
+      language === 'zh' ? '中国語のイラスト' :
+      language === 'ko' ? '韓国語のイラスト' : 'イラスト';
+    
+    // セリフの言語を指定
+    const languageName = 
+      language === 'ja' ? '日本語' : 
+      language === 'en' ? '英語' :
+      language === 'zh' ? '中国語' :
+      language === 'ko' ? '韓国語' : '日本語';
+    
     // 特別なプロンプトを作成
     const enhancedPrompt = `
-      ${prompt} について、最適な数のコマで表現するナビゲーションイラストレイアウトを作成してください。
+      ${languagePromptPrefix[language]}
+      
+      ${prompt} について、最適な数のコマで表現する${languageStyleText}レイアウトを作成してください。
       
       【重要な指示 - 必ず守ってください】
       - 1枚の画像の中に${panelCount}コマのナビゲーションイラストレイアウトを作成してください
@@ -455,10 +475,14 @@ export async function generateMultiPanelComic(
       - 吹き出しは一切含めないでください
       - 後から吹き出しとセリフを別途追加するため、会話ができるスペースを各コマに確保してください
       - 各コマの人物は会話しているように、表情豊かに描いてください
+      - すべてのテキストは${languageName}で表示してください
+      - ${languageStyleText}のスタイルで、読みやすい構図にしてください
       - スタイル: ${options.style || appConfig.defaultStyle}
       - スタイル詳細: ${appConfig.defaultStylePrompt}
       - 各コマの内容は以下の通りです：
       ${panelDescriptions}
+      
+      ${languageEnforcement[language]}
     `.trim();
     
     console.log('[マルチパネルイラスト] 生成プロンプト:', enhancedPrompt);

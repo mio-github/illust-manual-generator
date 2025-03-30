@@ -218,4 +218,17 @@ footer {
   border: 2px solid #333;
   background-color: rgba(255, 255, 255, 0.95);
   clip-path: polygon(0% 0%, 100% 0%, 90% 70%, 100% 100%, 0% 100%);
+}
+
+/* セリフ編集のスタイル */
+.bubble-text-editor {
+  cursor: text;
+  min-height: 1em;
+  user-select: text;
+  word-break: break-word;
+}
+
+.bubble-text-editor:focus {
+  outline: none;
+  border: none;
 } 
