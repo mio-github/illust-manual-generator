@@ -226,4 +226,3 @@ export default function TermsPage() {
     </div>
   );
 }
-</rewritten_file>
